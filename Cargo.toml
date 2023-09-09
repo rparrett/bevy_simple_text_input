@@ -26,3 +26,4 @@ features = [
 
 [dev-dependencies.bevy]
 version = "0.11"
+default-features = true
