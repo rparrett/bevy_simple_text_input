@@ -4,7 +4,7 @@
 
 An unambitious single-line text input widget for `bevy_ui`.
 
-![animated screenshot of text input widget gaining focus and text typed and submitted](assets/screenshot.gif)
+![animated screenshot of text input widget gaining focus and text typed and submitted](images/screenshot.gif)
 
 ## Usage
 
