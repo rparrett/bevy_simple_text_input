@@ -12,6 +12,10 @@ An unambitious single-line text input widget for `bevy_ui`.
 
 See [`examples/basic.rs`](examples/basic.rs).
 
+## Alternatives
+
+If you need more features, check out [`bevy_cosmic_edit`](https://github.com/StaffEngineer/bevy_cosmic_edit).
+
 ## Compatibility
 
 | `bevy_simple_text_input` | `bevy` |
@@ -21,3 +25,5 @@ See [`examples/basic.rs`](examples/basic.rs).
 ## Contributing
 
 Please feel free to open a PR, but keep in mind this project's goals. This is meant to be a simple single-line text widget.
+
+The code should be simple enough for users to quickly understand and modify for their own purposes.
