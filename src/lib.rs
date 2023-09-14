@@ -90,7 +90,7 @@ fn keyboard(
                 }
 
                 for event in character_events.iter() {
-                    if event.char == '\u{7f}' {
+                    if ['\u{7f}', '\u{8}'].contains(&event.char) {
                         text.sections[0].value.pop();
                         continue;
                     }
