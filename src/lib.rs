@@ -68,6 +68,20 @@ fn keyboard(
 
         for descendant in children_query.iter_descendants(input_entity) {
             if let Ok(mut text) = text_query.get_mut(descendant) {
+                for event in character_events.iter() {
+                    // This doesn't work on the web, so it is handled below with the KeyboardInput event.
+                    if ['\u{7f}', '\u{8}'].contains(&event.char) {
+                        continue;
+                    }
+
+                    // This doesn't work on the web, so it is handled below with the KeyboardInput event.
+                    if event.char == '\r' {
+                        continue;
+                    }
+
+                    text.sections[0].value.push(event.char);
+                }
+
                 for event in events.iter() {
                     if event.state.is_pressed() {
                         continue;
@@ -85,27 +99,22 @@ fn keyboard(
                                 text.sections[0].value.push(ahead);
                             }
                         }
+                        Some(KeyCode::Back) => {
+                            text.sections[0].value.pop();
+                        }
+                        Some(KeyCode::Return) => {
+                            submit_writer.send(TextInputSubmitEvent {
+                                entity: input_entity,
+                                value: format!(
+                                    "{}{}",
+                                    text.sections[0].value, text.sections[2].value
+                                ),
+                            });
+                            text.sections[0].value.clear();
+                            text.sections[2].value.clear();
+                        }
                         _ => {}
                     }
-                }
-
-                for event in character_events.iter() {
-                    if ['\u{7f}', '\u{8}'].contains(&event.char) {
-                        text.sections[0].value.pop();
-                        continue;
-                    }
-
-                    if event.char == '\r' {
-                        submit_writer.send(TextInputSubmitEvent {
-                            entity: input_entity,
-                            value: format!("{}{}", text.sections[0].value, text.sections[2].value),
-                        });
-                        text.sections[0].value.clear();
-                        text.sections[2].value.clear();
-                        continue;
-                    }
-
-                    text.sections[0].value.push(event.char);
                 }
 
                 // If the cursor is between two characters, use the zero-width cursor.
