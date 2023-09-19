@@ -102,6 +102,10 @@ fn keyboard(
                         Some(KeyCode::Back) => {
                             text.sections[0].value.pop();
                         }
+                        Some(KeyCode::Delete) => {
+                            text.sections[2].value =
+                                text.sections[2].value.chars().skip(1).collect();
+                        }
                         Some(KeyCode::Return) => {
                             submit_writer.send(TextInputSubmitEvent {
                                 entity: input_entity,
