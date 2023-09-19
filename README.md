@@ -20,7 +20,7 @@ If you need more features, check out [`bevy_cosmic_edit`](https://github.com/Sta
 
 | `bevy_simple_text_input` | `bevy` |
 | :--                      | :--    |
-| `0.1`                    | `0.11` |
+| `0.1`-`0.2`              | `0.11` |
 
 ## Contributing
 
