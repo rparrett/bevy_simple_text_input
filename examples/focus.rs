@@ -1,4 +1,4 @@
-use bevy::{prelude::*, text::DEFAULT_FONT_HANDLE};
+use bevy::prelude::*;
 use bevy_simple_text_input::{TextInput, TextInputPlugin};
 
 const BORDER_COLOR_ACTIVE: Color = Color::VIOLET;
@@ -21,6 +21,7 @@ fn setup(mut commands: Commands) {
             NodeBundle {
                 style: Style {
                     width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     ..default()
@@ -45,8 +46,8 @@ fn setup(mut commands: Commands) {
                 TextInput {
                     text_style: TextStyle {
                         font_size: 40.,
-                        font: DEFAULT_FONT_HANDLE.typed(),
                         color: Color::rgb(0.9, 0.9, 0.9),
+                        ..default()
                     },
                     ..default()
                 },
