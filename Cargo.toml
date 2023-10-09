@@ -15,7 +15,9 @@ exclude = [".github"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.bevy]
-version = "0.11"
+#version = "0.11"
+git = "https://github.com/bevyengine/bevy"
+branch = "main"
 default-features = false
 features = [
     "bevy_ui",
@@ -24,5 +26,7 @@ features = [
 ]
 
 [dev-dependencies.bevy]
-version = "0.11"
+#version = "0.11"
+git = "https://github.com/bevyengine/bevy"
+branch = "main"
 default-features = true

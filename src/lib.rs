@@ -1,8 +1,5 @@
 use bevy::{
-    asset::{load_internal_binary_asset, HandleUntyped},
-    input::keyboard::KeyboardInput,
-    prelude::*,
-    reflect::TypeUuid,
+    asset::load_internal_binary_asset, input::keyboard::KeyboardInput, prelude::*,
     text::BreakLineOn,
 };
 
@@ -23,8 +20,7 @@ impl Plugin for TextInputPlugin {
     }
 }
 
-const CURSOR_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Font::TYPE_UUID, 10482756907980398621);
+const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621);
 
 #[derive(Component, Default)]
 pub struct TextInput {
@@ -68,7 +64,7 @@ fn keyboard(
 
         for descendant in children_query.iter_descendants(input_entity) {
             if let Ok(mut text) = text_query.get_mut(descendant) {
-                for event in character_events.iter() {
+                for event in character_events.read() {
                     // This doesn't work on the web, so it is handled below with the KeyboardInput event.
                     if ['\u{7f}', '\u{8}'].contains(&event.char) {
                         continue;
@@ -82,7 +78,7 @@ fn keyboard(
                     text.sections[0].value.push(event.char);
                 }
 
-                for event in events.iter() {
+                for event in events.read() {
                     if event.state.is_pressed() {
                         continue;
                     };
@@ -153,7 +149,7 @@ fn create(mut commands: Commands, query: Query<(Entity, &TextInput), Added<TextI
                             TextSection {
                                 value: "}".to_string(),
                                 style: TextStyle {
-                                    font: CURSOR_HANDLE.typed(),
+                                    font: CURSOR_HANDLE,
                                     ..input.text_style.clone()
                                 },
                             },
