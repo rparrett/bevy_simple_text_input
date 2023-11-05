@@ -1,4 +1,4 @@
-use bevy::{prelude::*, text::DEFAULT_FONT_HANDLE};
+use bevy::prelude::*;
 use bevy_simple_text_input::{TextInput, TextInputPlugin, TextInputSubmitEvent};
 
 fn main() {
@@ -17,6 +17,7 @@ fn setup(mut commands: Commands) {
         .spawn(NodeBundle {
             style: Style {
                 width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 ..default()
@@ -39,8 +40,8 @@ fn setup(mut commands: Commands) {
                 TextInput {
                     text_style: TextStyle {
                         font_size: 40.,
-                        font: DEFAULT_FONT_HANDLE.typed(),
                         color: Color::rgb(0.9, 0.9, 0.9),
+                        ..default()
                     },
                     ..default()
                 },
@@ -49,7 +50,7 @@ fn setup(mut commands: Commands) {
 }
 
 fn listener(mut events: EventReader<TextInputSubmitEvent>) {
-    for event in events.iter() {
+    for event in events.read() {
         info!("{:?} submitted: {}", event.entity, event.value);
     }
 }
