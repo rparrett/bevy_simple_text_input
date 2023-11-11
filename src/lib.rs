@@ -150,6 +150,7 @@ fn create(mut commands: Commands, query: Query<(Entity, &TextInput), Added<TextI
                                 value: "}".to_string(),
                                 style: TextStyle {
                                     font: CURSOR_HANDLE,
+                                    color: Color::NONE,
                                     ..input.text_style.clone()
                                 },
                             },
@@ -200,6 +201,9 @@ fn cursor(
                 if text.sections[1].style.color != Color::NONE {
                     text.sections[1].style.color = Color::NONE;
                 } else {
+                    if text_input.inactive {
+                        continue;
+                    }
                     text.sections[1].style.color = text_input.text_style.color;
                 }
             }
