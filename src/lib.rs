@@ -62,68 +62,69 @@ fn keyboard(
             continue;
         }
 
-        for descendant in children_query.iter_descendants(input_entity) {
-            if let Ok(mut text) = text_query.get_mut(descendant) {
-                for event in character_events.read() {
-                    // This doesn't work on the web, so it is handled below with the KeyboardInput event.
-                    if ['\u{7f}', '\u{8}'].contains(&event.char) {
-                        continue;
-                    }
+        // Find `TextInputInner` among the descendants of this `TextInput`.
+        let Some(mut text) = children_query
+            .iter_descendants(input_entity)
+            .find(|descendant_entity| text_query.get(*descendant_entity).is_ok())
+            .and_then(|text_entity| text_query.get_mut(text_entity).ok())
+        else {
+            continue;
+        };
 
-                    // This doesn't work on the web, so it is handled below with the KeyboardInput event.
-                    if event.char == '\r' {
-                        continue;
-                    }
-
-                    text.sections[0].value.push(event.char);
-                }
-
-                for event in events.read() {
-                    if event.state.is_pressed() {
-                        continue;
-                    };
-
-                    match event.key_code {
-                        Some(KeyCode::Left) => {
-                            if let Some(behind) = text.sections[0].value.pop() {
-                                text.sections[2].value.insert(0, behind);
-                            }
-                        }
-                        Some(KeyCode::Right) => {
-                            if !text.sections[2].value.is_empty() {
-                                let ahead = text.sections[2].value.remove(0);
-                                text.sections[0].value.push(ahead);
-                            }
-                        }
-                        Some(KeyCode::Back) => {
-                            text.sections[0].value.pop();
-                        }
-                        Some(KeyCode::Delete) => {
-                            text.sections[2].value =
-                                text.sections[2].value.chars().skip(1).collect();
-                        }
-                        Some(KeyCode::Return) => {
-                            submit_writer.send(TextInputSubmitEvent {
-                                entity: input_entity,
-                                value: format!(
-                                    "{}{}",
-                                    text.sections[0].value, text.sections[2].value
-                                ),
-                            });
-                            text.sections[0].value.clear();
-                            text.sections[2].value.clear();
-                        }
-                        _ => {}
-                    }
-                }
-
-                // If the cursor is between two characters, use the zero-width cursor.
-                if text.sections[2].value.is_empty() {
-                    text.sections[1].value = "}".to_string();
-                } else {
-                    text.sections[1].value = "|".to_string();
-                }
+        for event in character_events.read() {
+            // This doesn't work on the web, so it is handled below with the KeyboardInput event.
+            if ['\u{7f}', '\u{8}'].contains(&event.char) {
+                continue;
             }
+
+            // This doesn't work on the web, so it is handled below with the KeyboardInput event.
+            if event.char == '\r' {
+                continue;
+            }
+
+            text.sections[0].value.push(event.char);
+        }
+
+        for event in events.read() {
+            if event.state.is_pressed() {
+                continue;
+            };
+
+            match event.key_code {
+                Some(KeyCode::Left) => {
+                    if let Some(behind) = text.sections[0].value.pop() {
+                        text.sections[2].value.insert(0, behind);
+                    }
+                }
+                Some(KeyCode::Right) => {
+                    if !text.sections[2].value.is_empty() {
+                        let ahead = text.sections[2].value.remove(0);
+                        text.sections[0].value.push(ahead);
+                    }
+                }
+                Some(KeyCode::Back) => {
+                    text.sections[0].value.pop();
+                }
+                Some(KeyCode::Delete) => {
+                    text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
+                }
+                Some(KeyCode::Return) => {
+                    submit_writer.send(TextInputSubmitEvent {
+                        entity: input_entity,
+                        value: format!("{}{}", text.sections[0].value, text.sections[2].value),
+                    });
+                    text.sections[0].value.clear();
+                    text.sections[2].value.clear();
+                }
+                _ => {}
+            }
+        }
+
+        // If the cursor is between two characters, use the zero-width cursor.
+        if text.sections[2].value.is_empty() {
+            text.sections[1].value = "}".to_string();
+        } else {
+            text.sections[1].value = "|".to_string();
         }
     }
 }
