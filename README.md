@@ -2,7 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/bevy_simple_text_input.svg)](https://crates.io/crates/bevy_simple_text_input)
 [![docs](https://docs.rs/bevy_simple_text_input/badge.svg)](https://docs.rs/bevy_simple_text_input)
-[![Bevy tracking](https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue)](https://github.com/bevyengine/bevy/blob/main/docs/plugins_guidelines.md#main-branch-tracking)
+[![Following released Bevy versions](https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue)](https://bevyengine.org/learn/book/plugin-development/#main-branch-tracking)
 
 An unambitious single-line text input widget for `bevy_ui`.
 
