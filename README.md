@@ -10,6 +10,9 @@ An unambitious single-line text input widget for `bevy_ui`.
 
 ## Usage
 
+> [!IMPORTANT]
+> Code and examples in the main branch are under development and may not be compatible with the released version on crates.io. The [`latest`] branch will contain the code from the most recent release.
+
 See [`examples/basic.rs`](examples/basic.rs).
 
 ## Alternatives
