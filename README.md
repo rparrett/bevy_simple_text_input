@@ -11,9 +11,9 @@ An unambitious single-line text input widget for `bevy_ui`.
 ## Usage
 
 > [!IMPORTANT]
-> Code and examples in the main branch are under development and may not be compatible with the released version on crates.io. The [`latest`] branch will contain the code from the most recent release.
+> Code and examples in the main branch are under development and may not be compatible with the released version on crates.io. The [`latest`](https://github.com/rparrett/bevy_simple_text_input/tree/latest) branch will contain the code from the most recent release.
 
-See [`examples/basic.rs`](examples/basic.rs).
+See [`examples/basic.rs`](https://github.com/rparrett/bevy_simple_text_input/blob/latest/examples/basic.rs).
 
 ## Alternatives
 
