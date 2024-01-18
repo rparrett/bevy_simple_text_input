@@ -1,6 +1,6 @@
 use bevy::{
-    asset::load_internal_binary_asset, input::keyboard::KeyboardInput, prelude::*,
-    text::BreakLineOn,
+    asset::load_internal_binary_asset, ecs::system::SystemParam, input::keyboard::KeyboardInput,
+    prelude::*, text::BreakLineOn,
 };
 
 pub struct TextInputPlugin;
@@ -45,12 +45,26 @@ pub struct TextInputSubmitEvent {
     pub value: String,
 }
 
+/// A convenience parameter for dealing with a `TextInput`'s inner `Text` entity.
+#[derive(SystemParam)]
+struct InnerText<'w, 's> {
+    text_query: Query<'w, 's, &'static mut Text, With<TextInputInner>>,
+    children_query: Query<'w, 's, &'static Children>,
+}
+impl<'w, 's> InnerText<'w, 's> {
+    fn get_mut(&mut self, entity: Entity) -> Option<Mut<'_, Text>> {
+        self.children_query
+            .iter_descendants(entity)
+            .find(|descendant_entity| self.text_query.get(*descendant_entity).is_ok())
+            .and_then(|text_entity| self.text_query.get_mut(text_entity).ok())
+    }
+}
+
 fn keyboard(
     mut events: EventReader<KeyboardInput>,
     mut character_events: EventReader<ReceivedCharacter>,
     text_input_query: Query<(Entity, &TextInput)>,
-    mut text_query: Query<&mut Text, With<TextInputInner>>,
-    children_query: Query<&Children>,
+    mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
     if events.is_empty() && character_events.is_empty() {
@@ -62,12 +76,7 @@ fn keyboard(
             continue;
         }
 
-        // Find `TextInputInner` among the descendants of this `TextInput`.
-        let Some(mut text) = children_query
-            .iter_descendants(input_entity)
-            .find(|descendant_entity| text_query.get(*descendant_entity).is_ok())
-            .and_then(|text_entity| text_query.get_mut(text_entity).ok())
-        else {
+        let Some(mut text) = inner_text.get_mut(input_entity) else {
             continue;
         };
 
@@ -187,8 +196,7 @@ fn create(mut commands: Commands, query: Query<(Entity, &TextInput), Added<TextI
 
 fn cursor(
     mut input_query: Query<(Entity, &TextInput, &mut CursorTimer)>,
-    mut text_query: Query<&mut Text, With<TextInputInner>>,
-    children_query: Query<&Children>,
+    mut inner_text: InnerText,
     time: Res<Time>,
 ) {
     for (entity, text_input, mut timer) in &mut input_query {
@@ -196,12 +204,7 @@ fn cursor(
             continue;
         }
 
-        // Find `TextInputInner` among the descendants of this `TextInput`.
-        let Some(mut text) = children_query
-            .iter_descendants(entity)
-            .find(|descendant_entity| text_query.get(*descendant_entity).is_ok())
-            .and_then(|text_entity| text_query.get_mut(text_entity).ok())
-        else {
+        let Some(mut text) = inner_text.get_mut(entity) else {
             continue;
         };
 
