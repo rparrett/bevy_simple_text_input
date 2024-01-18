@@ -196,14 +196,19 @@ fn cursor(
             continue;
         }
 
-        for descendant in children_query.iter_descendants(entity) {
-            if let Ok(mut text) = text_query.get_mut(descendant) {
-                if text.sections[1].style.color != Color::NONE {
-                    text.sections[1].style.color = Color::NONE;
-                } else {
-                    text.sections[1].style.color = text_input.text_style.color;
-                }
-            }
+        // Find `TextInputInner` among the descendants of this `TextInput`.
+        let Some(mut text) = children_query
+            .iter_descendants(entity)
+            .find(|descendant_entity| text_query.get(*descendant_entity).is_ok())
+            .and_then(|text_entity| text_query.get_mut(text_entity).ok())
+        else {
+            continue;
+        };
+
+        if text.sections[1].style.color != Color::NONE {
+            text.sections[1].style.color = Color::NONE;
+        } else {
+            text.sections[1].style.color = text_input.text_style.color;
         }
     }
 }
