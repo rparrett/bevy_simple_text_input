@@ -14,7 +14,7 @@ See [`examples/basic.rs`](examples/basic.rs).
 
 ## Alternatives
 
-If you need more features, check out [`bevy_cosmic_edit`](https://github.com/StaffEngineer/bevy_cosmic_edit).
+If you need more features, check out [`bevy_cosmic_edit`](https://github.com/StaffEngineer/bevy_cosmic_edit) or [`bevy_egui`](https://github.com/mvlabat/bevy_egui).
 
 ## Compatibility
 
