@@ -10,7 +10,7 @@ documentation = "https://docs.rs/bevy_simple_text_input"
 keywords = ["bevy", "gamedev"]
 categories = ["game-development"]
 readme = "README.md"
-exclude = [".github", "assets/screenshot.gif"]
+exclude = [".github"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
