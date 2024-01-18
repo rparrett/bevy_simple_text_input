@@ -1,5 +1,7 @@
+//! An example showing a very basic implementation.
+
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInput, TextInputPlugin, TextInputSubmitEvent};
+use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSubmitEvent};
 
 fn main() {
     App::new()
@@ -37,14 +39,11 @@ fn setup(mut commands: Commands) {
                     background_color: Color::RED.into(),
                     ..default()
                 },
-                TextInput {
-                    text_style: TextStyle {
-                        font_size: 40.,
-                        color: Color::rgb(0.9, 0.9, 0.9),
-                        ..default()
-                    },
+                TextInputBundle::new(TextStyle {
+                    font_size: 40.,
+                    color: Color::rgb(0.9, 0.9, 0.9),
                     ..default()
-                },
+                }),
             ));
         });
 }
