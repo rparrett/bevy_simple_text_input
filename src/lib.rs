@@ -1,8 +1,11 @@
+//! A Bevy plugin the provides a simple single-line text input widget.
+
 use bevy::{
     asset::load_internal_binary_asset, ecs::system::SystemParam, input::keyboard::KeyboardInput,
     prelude::*, text::BreakLineOn,
 };
 
+/// A `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
 pub struct TextInputPlugin;
 
 impl Plugin for TextInputPlugin {
@@ -22,26 +25,66 @@ impl Plugin for TextInputPlugin {
 
 const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621);
 
-#[derive(Component, Default)]
-pub struct TextInput {
-    pub text_style: TextStyle,
-    /// The text input does not respond to keyboard events
-    pub inactive: bool,
+/// A bundle providing the additional components required for a text input.
+///
+/// Add this to a `NodeBundle`.
+///
+/// Examples:
+/// ```rust
+/// # use bevy::prelude::*;
+/// use bevy_simple_text_input::TextInputBundle;
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((NodeBundle::default(), TextInputBundle::default()));
+/// }
+/// ```
+#[derive(Bundle, Default)]
+pub struct TextInputBundle {
+    text_style: TextInputTextStyle,
+    inactive: TextInputInactive,
+    cursor_timer: TextInputCursorTimer,
+    text_input: TextInput,
+    interaction: Interaction,
 }
-#[derive(Component)]
-struct TextInputInner;
+impl TextInputBundle {
+    /// Creates a new `TextInputBundle` with the specified `TextStyle`.
+    pub fn new(text_style: TextStyle) -> Self {
+        Self {
+            text_style: TextInputTextStyle(text_style),
+            ..default()
+        }
+    }
+}
 
+/// The `TextStyle` that will be used when creating the text input's inner `TextBundle`.
+#[derive(Component, Default)]
+pub struct TextInputTextStyle(pub TextStyle);
+
+/// If true, the text input does not respond to keyboard events.
+#[derive(Component, Default)]
+pub struct TextInputInactive(pub bool);
+
+/// The timer controlling the blinking cursor. The cursor is toggled when the timer is finished.
 #[derive(Component)]
-struct CursorTimer(Timer);
-impl Default for CursorTimer {
+pub struct TextInputCursorTimer(pub Timer);
+impl Default for TextInputCursorTimer {
     fn default() -> Self {
         Self(Timer::from_seconds(0.5, TimerMode::Repeating))
     }
 }
 
+/// A marker component for the text input.
+#[derive(Component, Default)]
+pub struct TextInput;
+
+#[derive(Component)]
+struct TextInputInner;
+
+/// An event that is fired when the user presses the enter key.
 #[derive(Event)]
 pub struct TextInputSubmitEvent {
+    /// The text input that triggered the event.
     pub entity: Entity,
+    /// The string contained in the text input at the time of the event.
     pub value: String,
 }
 
@@ -63,7 +106,7 @@ impl<'w, 's> InnerText<'w, 's> {
 fn keyboard(
     mut events: EventReader<KeyboardInput>,
     mut character_events: EventReader<ReceivedCharacter>,
-    text_input_query: Query<(Entity, &TextInput)>,
+    text_input_query: Query<(Entity, &TextInputInactive), With<TextInput>>,
     mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
@@ -71,8 +114,8 @@ fn keyboard(
         return;
     }
 
-    for (input_entity, input) in &text_input_query {
-        if input.inactive {
+    for (input_entity, inactive) in &text_input_query {
+        if inactive.0 {
             continue;
         }
 
@@ -138,12 +181,8 @@ fn keyboard(
     }
 }
 
-fn create(mut commands: Commands, query: Query<(Entity, &TextInput), Added<TextInput>>) {
-    for (entity, input) in &query {
-        commands
-            .entity(entity)
-            .insert((CursorTimer::default(), Interaction::None));
-
+fn create(mut commands: Commands, query: Query<(Entity, &TextInputTextStyle), Added<TextInput>>) {
+    for (entity, style) in &query {
         let text = commands
             .spawn((
                 TextBundle {
@@ -153,20 +192,20 @@ fn create(mut commands: Commands, query: Query<(Entity, &TextInput), Added<TextI
                             // Pre-cursor
                             TextSection {
                                 value: "".to_string(),
-                                style: input.text_style.clone(),
+                                style: style.0.clone(),
                             },
                             // cursor
                             TextSection {
                                 value: "}".to_string(),
                                 style: TextStyle {
                                     font: CURSOR_HANDLE,
-                                    ..input.text_style.clone()
+                                    ..style.0.clone()
                                 },
                             },
                             // Post-cursor
                             TextSection {
                                 value: "".to_string(),
-                                style: input.text_style.clone(),
+                                style: style.0.clone(),
                             },
                         ],
                         ..default()
@@ -195,11 +234,11 @@ fn create(mut commands: Commands, query: Query<(Entity, &TextInput), Added<TextI
 }
 
 fn cursor(
-    mut input_query: Query<(Entity, &TextInput, &mut CursorTimer)>,
+    mut input_query: Query<(Entity, &TextInputTextStyle, &mut TextInputCursorTimer)>,
     mut inner_text: InnerText,
     time: Res<Time>,
 ) {
-    for (entity, text_input, mut timer) in &mut input_query {
+    for (entity, style, mut timer) in &mut input_query {
         if !timer.0.tick(time.delta()).just_finished() {
             continue;
         }
@@ -211,7 +250,7 @@ fn cursor(
         if text.sections[1].style.color != Color::NONE {
             text.sections[1].style.color = Color::NONE;
         } else {
-            text.sections[1].style.color = text_input.text_style.color;
+            text.sections[1].style.color = style.0.color;
         }
     }
 }

@@ -1,5 +1,7 @@
+//! An example showing a more advanced implementation with focus.
+
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInput, TextInputPlugin};
+use bevy_simple_text_input::{TextInputBundle, TextInputInactive, TextInputPlugin};
 
 const BORDER_COLOR_ACTIVE: Color = Color::VIOLET;
 const BORDER_COLOR_INACTIVE: Color = Color::BLACK;
@@ -28,6 +30,8 @@ fn setup(mut commands: Commands) {
                 },
                 ..default()
             },
+            // Make this container node bundle to be Interactive so that clicking on it removes
+            // focus from the text input.
             Interaction::None,
         ))
         .with_children(|parent| {
@@ -43,30 +47,27 @@ fn setup(mut commands: Commands) {
                     background_color: Color::INDIGO.into(),
                     ..default()
                 },
-                TextInput {
-                    text_style: TextStyle {
-                        font_size: 40.,
-                        color: Color::rgb(0.9, 0.9, 0.9),
-                        ..default()
-                    },
+                TextInputBundle::new(TextStyle {
+                    font_size: 40.,
+                    color: Color::rgb(0.9, 0.9, 0.9),
                     ..default()
-                },
+                }),
             ));
         });
 }
 
 fn focus(
     query: Query<(Entity, &Interaction), Changed<Interaction>>,
-    mut text_input_query: Query<(Entity, &mut TextInput, &mut BorderColor)>,
+    mut text_input_query: Query<(Entity, &mut TextInputInactive, &mut BorderColor)>,
 ) {
     for (interaction_entity, interaction) in &query {
         if *interaction == Interaction::Pressed {
-            for (entity, mut text_input, mut border_color) in &mut text_input_query {
+            for (entity, mut inactive, mut border_color) in &mut text_input_query {
                 if entity == interaction_entity {
-                    text_input.inactive = false;
+                    inactive.0 = false;
                     *border_color = BORDER_COLOR_ACTIVE.into();
                 } else {
-                    text_input.inactive = true;
+                    inactive.0 = true;
                     *border_color = BORDER_COLOR_INACTIVE.into();
                 }
             }
