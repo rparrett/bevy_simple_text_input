@@ -1,8 +1,11 @@
 //! A Bevy plugin the provides a simple single-line text input widget.
 
 use bevy::{
-    asset::load_internal_binary_asset, ecs::system::SystemParam, input::keyboard::KeyboardInput,
-    prelude::*, text::BreakLineOn,
+    asset::load_internal_binary_asset,
+    ecs::system::SystemParam,
+    input::keyboard::{Key, KeyboardInput},
+    prelude::*,
+    text::BreakLineOn,
 };
 
 /// A `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
@@ -126,12 +129,11 @@ impl<'w, 's> InnerText<'w, 's> {
 
 fn keyboard(
     mut events: EventReader<KeyboardInput>,
-    mut character_events: EventReader<ReceivedCharacter>,
     mut text_input_query: Query<(Entity, &TextInputInactive, &mut TextInput)>,
     mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
-    if events.is_empty() && character_events.is_empty() {
+    if events.is_empty() {
         return;
     }
 
@@ -144,20 +146,6 @@ fn keyboard(
             continue;
         };
 
-        for event in character_events.read() {
-            // This doesn't work on the web, so it is handled below with the KeyboardInput event.
-            if ['\u{7f}', '\u{8}'].contains(&event.char) {
-                continue;
-            }
-
-            // This doesn't work on the web, so it is handled below with the KeyboardInput event.
-            if event.char == '\r' {
-                continue;
-            }
-
-            text.sections[0].value.push(event.char);
-        }
-
         let mut submitted_value = None;
 
         for event in events.read() {
@@ -166,24 +154,28 @@ fn keyboard(
             };
 
             match event.key_code {
-                Some(KeyCode::Left) => {
+                KeyCode::ArrowLeft => {
                     if let Some(behind) = text.sections[0].value.pop() {
                         text.sections[2].value.insert(0, behind);
                     }
+                    continue;
                 }
-                Some(KeyCode::Right) => {
+                KeyCode::ArrowRight => {
                     if !text.sections[2].value.is_empty() {
                         let ahead = text.sections[2].value.remove(0);
                         text.sections[0].value.push(ahead);
                     }
+                    continue;
                 }
-                Some(KeyCode::Back) => {
+                KeyCode::Backspace => {
                     text.sections[0].value.pop();
+                    continue;
                 }
-                Some(KeyCode::Delete) => {
+                KeyCode::Delete => {
                     text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
+                    continue;
                 }
-                Some(KeyCode::Return) => {
+                KeyCode::Enter => {
                     submitted_value = Some(format!(
                         "{}{}",
                         text.sections[0].value, text.sections[2].value
@@ -191,8 +183,17 @@ fn keyboard(
 
                     text.sections[0].value.clear();
                     text.sections[2].value.clear();
+                    continue;
+                }
+                KeyCode::Space => {
+                    text.sections[0].value.push(' ');
+                    continue;
                 }
                 _ => {}
+            }
+
+            if let Key::Character(ref s) = event.logical_key {
+                text.sections[0].value.push_str(s.as_str());
             }
         }
 
