@@ -19,7 +19,7 @@ impl Plugin for TextInputPlugin {
         );
 
         app.add_event::<TextInputSubmitEvent>()
-            .add_systems(Update, (create, keyboard, cursor));
+            .add_systems(Update, (create, keyboard, cursor, update_style));
     }
 }
 
@@ -252,5 +252,23 @@ fn cursor(
         } else {
             text.sections[1].style.color = style.0.color;
         }
+    }
+}
+
+fn update_style(
+    mut input_query: Query<(Entity, &TextInputTextStyle), Changed<TextInputTextStyle>>,
+    mut inner_text: InnerText,
+) {
+    for (entity, style) in &mut input_query {
+        let Some(mut text) = inner_text.get_mut(entity) else {
+            continue;
+        };
+
+        text.sections[0].style = style.0.clone();
+        text.sections[1].style = TextStyle {
+            font: CURSOR_HANDLE,
+            ..style.0.clone()
+        };
+        text.sections[2].style = style.0.clone();
     }
 }
