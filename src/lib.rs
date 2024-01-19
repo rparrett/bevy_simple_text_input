@@ -18,8 +18,16 @@ impl Plugin for TextInputPlugin {
             |bytes: &[u8], _path: String| { Font::try_from_bytes(bytes.to_vec()).unwrap() }
         );
 
-        app.add_event::<TextInputSubmitEvent>()
-            .add_systems(Update, (create, keyboard, cursor, update_style));
+        app.add_event::<TextInputSubmitEvent>().add_systems(
+            Update,
+            (
+                create,
+                keyboard,
+                blink_cursor,
+                show_hide_cursor,
+                update_style,
+            ),
+        );
     }
 }
 
@@ -233,12 +241,49 @@ fn create(mut commands: Commands, query: Query<(Entity, &TextInputTextStyle), Ad
     }
 }
 
-fn cursor(
-    mut input_query: Query<(Entity, &TextInputTextStyle, &mut TextInputCursorTimer)>,
+fn blink_cursor(
+    mut input_query: Query<(
+        Entity,
+        &TextInputTextStyle,
+        &mut TextInputCursorTimer,
+        Ref<TextInputInactive>,
+    )>,
+    mut inner_text: InnerText,
+) {
+    for (entity, style, mut timer, inactive) in &mut input_query {
+        if !inactive.is_changed() {
+            continue;
+        }
+
+        let Some(mut text) = inner_text.get_mut(entity) else {
+            continue;
+        };
+
+        text.sections[1].style.color = if inactive.0 {
+            Color::NONE
+        } else {
+            style.0.color
+        };
+
+        timer.0.reset();
+    }
+}
+
+fn show_hide_cursor(
+    mut input_query: Query<(
+        Entity,
+        &TextInputTextStyle,
+        &mut TextInputCursorTimer,
+        Ref<TextInputInactive>,
+    )>,
     mut inner_text: InnerText,
     time: Res<Time>,
 ) {
-    for (entity, style, mut timer) in &mut input_query {
+    for (entity, style, mut timer, inactive) in &mut input_query {
+        if inactive.0 {
+            continue;
+        }
+
         if !timer.0.tick(time.delta()).just_finished() {
             continue;
         }
