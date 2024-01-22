@@ -146,7 +146,7 @@ fn keyboard(
         }
 
         for event in events.read() {
-            if event.state.is_pressed() {
+            if !event.state.is_pressed() {
                 continue;
             };
 
