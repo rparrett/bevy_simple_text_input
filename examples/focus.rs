@@ -1,7 +1,7 @@
 //! An example showing a more advanced implementation with focus.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInputBundle, TextInputInactive, TextInputPlugin};
+use bevy_simple_text_input::{TextInputBundle, TextInputInactive, TextInputPlugin, TextStorage};
 
 const BORDER_COLOR_ACTIVE: Color = Color::VIOLET;
 const BORDER_COLOR_INACTIVE: Color = Color::BLACK;
@@ -59,6 +59,7 @@ fn setup(mut commands: Commands) {
 fn focus(
     query: Query<(Entity, &Interaction), Changed<Interaction>>,
     mut text_input_query: Query<(Entity, &mut TextInputInactive, &mut BorderColor)>,
+    text_query: Query<&TextStorage, Changed<TextStorage>>,
 ) {
     for (interaction_entity, interaction) in &query {
         if *interaction == Interaction::Pressed {
@@ -72,5 +73,8 @@ fn focus(
                 }
             }
         }
+    }
+    for text in &text_query {
+        info!("Input updated: {}", **text);
     }
 }

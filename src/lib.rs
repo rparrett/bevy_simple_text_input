@@ -19,10 +19,10 @@ impl Plugin for TextInputPlugin {
         );
 
         app.add_event::<TextInputSubmitEvent>()
-            // .register_type::<TextInputTextStyle>()
-            // .register_type::<TextInputInactive>()
-            // .register_type::<TextInputCursorTimer>()
-            // .register_type::<TextInput>()
+            .register_type::<TextInputTextStyle>()
+            .register_type::<TextInputInactive>()
+            .register_type::<TextInputCursorTimer>()
+            .register_type::<TextInput>()
             .register_type::<TextStorage>()
             .add_systems(
                 Update,
@@ -155,7 +155,6 @@ fn keyboard(
             }
 
             text.sections[0].value.push(event.char);
-            **storage = format!("{}{}", text.sections[0].value, text.sections[2].value);
         }
 
         for event in events.read() {
@@ -192,7 +191,11 @@ fn keyboard(
                 _ => {}
             }
         }
-        **storage = format!("{}{}", text.sections[0].value, text.sections[2].value);
+        let value = format!("{}{}", text.sections[0].value, text.sections[2].value);
+
+        if !value.eq(&**storage) {
+            **storage = value;
+        }
 
         // If the cursor is between two characters, use the zero-width cursor.
         if text.sections[2].value.is_empty() {
