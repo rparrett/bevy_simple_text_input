@@ -19,11 +19,6 @@ impl Plugin for TextInputPlugin {
         );
 
         app.add_event::<TextInputSubmitEvent>()
-            .register_type::<TextInputTextStyle>()
-            .register_type::<TextInputInactive>()
-            .register_type::<TextInputCursorTimer>()
-            .register_type::<TextInput>()
-            .register_type::<TextStorage>()
             .add_systems(
                 Update,
                 (
@@ -33,7 +28,8 @@ impl Plugin for TextInputPlugin {
                     show_hide_cursor,
                     update_style,
                 ),
-            );
+            )
+            .register_type::<TextStorage>();
     }
 }
 
@@ -71,15 +67,15 @@ impl TextInputBundle {
 }
 
 /// The `TextStyle` that will be used when creating the text input's inner `TextBundle`.
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Default)]
 pub struct TextInputTextStyle(pub TextStyle);
 
 /// If true, the text input does not respond to keyboard events.
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Default)]
 pub struct TextInputInactive(pub bool);
 
 /// The timer controlling the blinking cursor. The cursor is toggled when the timer is finished.
-#[derive(Component, Reflect)]
+#[derive(Component)]
 pub struct TextInputCursorTimer(pub Timer);
 
 impl Default for TextInputCursorTimer {
@@ -89,10 +85,10 @@ impl Default for TextInputCursorTimer {
 }
 
 /// A marker component for the text input.
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Default)]
 pub struct TextInput;
 
-#[derive(Component, Reflect)]
+#[derive(Component)]
 struct TextInputInner;
 
 /// A component for the text containing input.
