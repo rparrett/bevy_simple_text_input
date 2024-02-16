@@ -18,16 +18,22 @@ impl Plugin for TextInputPlugin {
             |bytes: &[u8], _path: String| { Font::try_from_bytes(bytes.to_vec()).unwrap() }
         );
 
-        app.add_event::<TextInputSubmitEvent>().add_systems(
-            Update,
-            (
-                create,
-                keyboard,
-                blink_cursor,
-                show_hide_cursor,
-                update_style,
-            ),
-        );
+        app.add_event::<TextInputSubmitEvent>()
+            // .register_type::<TextInputTextStyle>()
+            // .register_type::<TextInputInactive>()
+            // .register_type::<TextInputCursorTimer>()
+            // .register_type::<TextInput>()
+            .register_type::<TextStorage>()
+            .add_systems(
+                Update,
+                (
+                    create,
+                    keyboard,
+                    blink_cursor,
+                    show_hide_cursor,
+                    update_style,
+                ),
+            );
     }
 }
 
@@ -52,6 +58,7 @@ pub struct TextInputBundle {
     cursor_timer: TextInputCursorTimer,
     text_input: TextInput,
     interaction: Interaction,
+    container: TextStorage,
 }
 impl TextInputBundle {
     /// Creates a new `TextInputBundle` with the specified `TextStyle`.
@@ -64,16 +71,17 @@ impl TextInputBundle {
 }
 
 /// The `TextStyle` that will be used when creating the text input's inner `TextBundle`.
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct TextInputTextStyle(pub TextStyle);
 
 /// If true, the text input does not respond to keyboard events.
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct TextInputInactive(pub bool);
 
 /// The timer controlling the blinking cursor. The cursor is toggled when the timer is finished.
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct TextInputCursorTimer(pub Timer);
+
 impl Default for TextInputCursorTimer {
     fn default() -> Self {
         Self(Timer::from_seconds(0.5, TimerMode::Repeating))
@@ -81,11 +89,15 @@ impl Default for TextInputCursorTimer {
 }
 
 /// A marker component for the text input.
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct TextInput;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 struct TextInputInner;
+
+/// A component for the text containing input.
+#[derive(Component, Default, Reflect, Deref, DerefMut)]
+pub struct TextStorage(pub String);
 
 /// An event that is fired when the user presses the enter key.
 #[derive(Event)]
@@ -114,7 +126,7 @@ impl<'w, 's> InnerText<'w, 's> {
 fn keyboard(
     mut events: EventReader<KeyboardInput>,
     mut character_events: EventReader<ReceivedCharacter>,
-    text_input_query: Query<(Entity, &TextInputInactive), With<TextInput>>,
+    mut text_input_query: Query<(Entity, &TextInputInactive, &mut TextStorage), With<TextInput>>,
     mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
@@ -122,7 +134,7 @@ fn keyboard(
         return;
     }
 
-    for (input_entity, inactive) in &text_input_query {
+    for (input_entity, inactive, mut storage) in &mut text_input_query {
         if inactive.0 {
             continue;
         }
@@ -143,6 +155,7 @@ fn keyboard(
             }
 
             text.sections[0].value.push(event.char);
+            **storage = format!("{}{}", text.sections[0].value, text.sections[2].value);
         }
 
         for event in events.read() {
@@ -171,10 +184,11 @@ fn keyboard(
                 Some(KeyCode::Return) => {
                     submit_writer.send(TextInputSubmitEvent {
                         entity: input_entity,
-                        value: format!("{}{}", text.sections[0].value, text.sections[2].value),
+                        value: (*storage).to_string(),
                     });
                     text.sections[0].value.clear();
                     text.sections[2].value.clear();
+                    **storage = format!("{}{}", text.sections[0].value, text.sections[2].value);
                 }
                 _ => {}
             }

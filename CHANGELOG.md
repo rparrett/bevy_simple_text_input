@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+* Store text value in `TextStorage` component so there is a way to access input field.
+
 ## 0.3.1
 
 * Upgrade to Bevy 0.12 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/7>
