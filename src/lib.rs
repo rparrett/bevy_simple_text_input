@@ -188,11 +188,11 @@ fn keyboard(
                     });
                     text.sections[0].value.clear();
                     text.sections[2].value.clear();
-                    **storage = format!("{}{}", text.sections[0].value, text.sections[2].value);
                 }
                 _ => {}
             }
         }
+        **storage = format!("{}{}", text.sections[0].value, text.sections[2].value);
 
         // If the cursor is between two characters, use the zero-width cursor.
         if text.sections[2].value.is_empty() {
