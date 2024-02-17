@@ -94,7 +94,7 @@ impl Default for TextInputCursorTimer {
 }
 
 /// A component containing the current value of the text input.
-#[derive(Component, Default, Reflect, Deref, DerefMut)]
+#[derive(Component, Default, Reflect)]
 pub struct TextInput(pub String);
 
 #[derive(Component)]
@@ -157,7 +157,8 @@ fn keyboard(
 
             text.sections[0].value.push(event.char);
         }
-        let mut should_send_event = false;
+
+        let mut submitted_value = None;
 
         for event in events.read() {
             if !event.state.is_pressed() {
@@ -183,23 +184,28 @@ fn keyboard(
                     text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
                 }
                 Some(KeyCode::Return) => {
-                    should_send_event = true;
+                    submitted_value = Some(format!(
+                        "{}{}",
+                        text.sections[0].value, text.sections[2].value
+                    ));
+
+                    text.sections[0].value.clear();
+                    text.sections[2].value.clear();
                 }
                 _ => {}
             }
         }
-        let value = format!("{}{}", text.sections[0].value, text.sections[2].value);
 
-        if !value.eq(&**text_input) {
-            **text_input = value;
+        let value = format!("{}{}", text.sections[0].value, text.sections[2].value);
+        if !value.eq(&text_input.bypass_change_detection().0) {
+            text_input.0 = value;
         }
-        if should_send_event {
+
+        if let Some(value) = submitted_value {
             submit_writer.send(TextInputSubmitEvent {
                 entity: input_entity,
-                value: (*text_input).to_string(),
+                value,
             });
-            text.sections[0].value.clear();
-            text.sections[2].value.clear();
         }
 
         // If the cursor is between two characters, use the zero-width cursor.
@@ -224,7 +230,7 @@ fn create(
                         sections: vec![
                             // Pre-cursor
                             TextSection {
-                                value: (**text_input).clone(),
+                                value: text_input.0.clone(),
                                 style: style.0.clone(),
                             },
                             // cursor
