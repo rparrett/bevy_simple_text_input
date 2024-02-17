@@ -2,6 +2,7 @@
 
 ## 0.4.0
 
+* Upgrade to Bevy 0.13 and prepare for Release by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/19>
 * Tweaks to TextInput by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/18>
 * Make TextInput contain text information by @Leinnan in <https://github.com/rparrett/bevy_simple_text_input/pull/17>
 * Hide cursor for inactive text inputs by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/15>
