@@ -1,7 +1,7 @@
 //! An example showing a more advanced implementation with focus.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInputBundle, TextInputInactive, TextInputPlugin, TextStorage};
+use bevy_simple_text_input::{TextInput, TextInputBundle, TextInputInactive, TextInputPlugin};
 
 const BORDER_COLOR_ACTIVE: Color = Color::VIOLET;
 const BORDER_COLOR_INACTIVE: Color = Color::BLACK;
@@ -47,11 +47,14 @@ fn setup(mut commands: Commands) {
                     background_color: Color::INDIGO.into(),
                     ..default()
                 },
-                TextInputBundle::new(TextStyle {
-                    font_size: 40.,
-                    color: Color::rgb(0.9, 0.9, 0.9),
-                    ..default()
-                }),
+                TextInputBundle::with_starting_text(
+                    TextStyle {
+                        font_size: 40.,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                        ..default()
+                    },
+                    "text".to_owned(),
+                ),
             ));
         });
 }
@@ -59,7 +62,7 @@ fn setup(mut commands: Commands) {
 fn focus(
     query: Query<(Entity, &Interaction), Changed<Interaction>>,
     mut text_input_query: Query<(Entity, &mut TextInputInactive, &mut BorderColor)>,
-    text_query: Query<&TextStorage, Changed<TextStorage>>,
+    text_query: Query<&TextInput, Changed<TextInput>>,
 ) {
     for (interaction_entity, interaction) in &query {
         if *interaction == Interaction::Pressed {
