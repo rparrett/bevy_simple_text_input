@@ -1,6 +1,6 @@
 [package]
 name = "bevy_simple_text_input"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Bevy plugin for a simple single-line text input widget."
@@ -15,12 +15,12 @@ exclude = [".github"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.bevy]
-version = "0.12"
+version = "0.13"
 default-features = false
 features = ["bevy_ui", "bevy_asset", "bevy_text"]
 
 [dev-dependencies.bevy]
-version = "0.12"
+version = "0.13"
 default-features = true
 
 [lints.rust]
