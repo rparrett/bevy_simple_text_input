@@ -18,16 +18,18 @@ impl Plugin for TextInputPlugin {
             |bytes: &[u8], _path: String| { Font::try_from_bytes(bytes.to_vec()).unwrap() }
         );
 
-        app.add_event::<TextInputSubmitEvent>().add_systems(
-            Update,
-            (
-                create,
-                keyboard,
-                blink_cursor,
-                show_hide_cursor,
-                update_style,
-            ),
-        );
+        app.add_event::<TextInputSubmitEvent>()
+            .add_systems(
+                Update,
+                (
+                    create,
+                    keyboard,
+                    blink_cursor,
+                    show_hide_cursor,
+                    update_style,
+                ),
+            )
+            .register_type::<TextInput>();
     }
 }
 
@@ -53,11 +55,21 @@ pub struct TextInputBundle {
     text_input: TextInput,
     interaction: Interaction,
 }
+
 impl TextInputBundle {
     /// Creates a new `TextInputBundle` with the specified `TextStyle`.
     pub fn new(text_style: TextStyle) -> Self {
         Self {
             text_style: TextInputTextStyle(text_style),
+            ..default()
+        }
+    }
+
+    /// Creates a new `TextInputBundle` with the specified `TextStyle` and starting text.
+    pub fn with_starting_text(text_style: TextStyle, starting_text: String) -> Self {
+        Self {
+            text_style: TextInputTextStyle(text_style),
+            text_input: TextInput(starting_text),
             ..default()
         }
     }
@@ -74,15 +86,16 @@ pub struct TextInputInactive(pub bool);
 /// The timer controlling the blinking cursor. The cursor is toggled when the timer is finished.
 #[derive(Component)]
 pub struct TextInputCursorTimer(pub Timer);
+
 impl Default for TextInputCursorTimer {
     fn default() -> Self {
         Self(Timer::from_seconds(0.5, TimerMode::Repeating))
     }
 }
 
-/// A marker component for the text input.
-#[derive(Component, Default)]
-pub struct TextInput;
+/// A component containing the current value of the text input.
+#[derive(Component, Default, Reflect, Deref, DerefMut)]
+pub struct TextInput(pub String);
 
 #[derive(Component)]
 struct TextInputInner;
@@ -114,7 +127,7 @@ impl<'w, 's> InnerText<'w, 's> {
 fn keyboard(
     mut events: EventReader<KeyboardInput>,
     mut character_events: EventReader<ReceivedCharacter>,
-    text_input_query: Query<(Entity, &TextInputInactive), With<TextInput>>,
+    mut text_input_query: Query<(Entity, &TextInputInactive, &mut TextInput)>,
     mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
@@ -122,7 +135,7 @@ fn keyboard(
         return;
     }
 
-    for (input_entity, inactive) in &text_input_query {
+    for (input_entity, inactive, mut text_input) in &mut text_input_query {
         if inactive.0 {
             continue;
         }
@@ -144,6 +157,7 @@ fn keyboard(
 
             text.sections[0].value.push(event.char);
         }
+        let mut should_send_event = false;
 
         for event in events.read() {
             if !event.state.is_pressed() {
@@ -169,15 +183,23 @@ fn keyboard(
                     text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
                 }
                 Some(KeyCode::Return) => {
-                    submit_writer.send(TextInputSubmitEvent {
-                        entity: input_entity,
-                        value: format!("{}{}", text.sections[0].value, text.sections[2].value),
-                    });
-                    text.sections[0].value.clear();
-                    text.sections[2].value.clear();
+                    should_send_event = true;
                 }
                 _ => {}
             }
+        }
+        let value = format!("{}{}", text.sections[0].value, text.sections[2].value);
+
+        if !value.eq(&**text_input) {
+            **text_input = value;
+        }
+        if should_send_event {
+            submit_writer.send(TextInputSubmitEvent {
+                entity: input_entity,
+                value: (*text_input).to_string(),
+            });
+            text.sections[0].value.clear();
+            text.sections[2].value.clear();
         }
 
         // If the cursor is between two characters, use the zero-width cursor.
@@ -189,8 +211,11 @@ fn keyboard(
     }
 }
 
-fn create(mut commands: Commands, query: Query<(Entity, &TextInputTextStyle), Added<TextInput>>) {
-    for (entity, style) in &query {
+fn create(
+    mut commands: Commands,
+    query: Query<(Entity, &TextInputTextStyle, &TextInput), Added<TextInput>>,
+) {
+    for (entity, style, text_input) in &query {
         let text = commands
             .spawn((
                 TextBundle {
@@ -199,7 +224,7 @@ fn create(mut commands: Commands, query: Query<(Entity, &TextInputTextStyle), Ad
                         sections: vec![
                             // Pre-cursor
                             TextSection {
-                                value: "".to_string(),
+                                value: (**text_input).clone(),
                                 style: style.0.clone(),
                             },
                             // cursor
