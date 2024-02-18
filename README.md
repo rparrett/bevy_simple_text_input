@@ -29,6 +29,8 @@ Please feel free to open a PR, but keep in mind this project's goals. This is me
 
 The code should be simple enough for users to quickly understand and modify for their own purposes.
 
+Please keep PRs small and scoped to a single feature or fix.
+
 ## Alternatives
 
 If you need more features, check out [`bevy_cosmic_edit`](https://github.com/StaffEngineer/bevy_cosmic_edit) or [`bevy_egui`](https://github.com/mvlabat/bevy_egui).
