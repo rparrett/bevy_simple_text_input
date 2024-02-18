@@ -86,13 +86,20 @@ pub struct TextInputTextStyle(pub TextStyle);
 #[derive(Component, Default)]
 pub struct TextInputInactive(pub bool);
 
-/// The timer controlling the blinking cursor. The cursor is toggled when the timer is finished.
+/// A component that manages the cursor's blinking.
 #[derive(Component)]
-pub struct TextInputCursorTimer(pub Timer);
+pub struct TextInputCursorTimer {
+    /// The timer that blinks the cursor on and off, and resets when the user types.
+    pub timer: Timer,
+    should_reset: bool,
+}
 
 impl Default for TextInputCursorTimer {
     fn default() -> Self {
-        Self(Timer::from_seconds(0.5, TimerMode::Repeating))
+        Self {
+            timer: Timer::from_seconds(0.5, TimerMode::Repeating),
+            should_reset: false,
+        }
     }
 }
 
@@ -129,7 +136,12 @@ impl<'w, 's> InnerText<'w, 's> {
 
 fn keyboard(
     mut events: EventReader<KeyboardInput>,
-    mut text_input_query: Query<(Entity, &TextInputInactive, &mut TextInput)>,
+    mut text_input_query: Query<(
+        Entity,
+        &TextInputInactive,
+        &mut TextInput,
+        &mut TextInputCursorTimer,
+    )>,
     mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
@@ -137,7 +149,7 @@ fn keyboard(
         return;
     }
 
-    for (input_entity, inactive, mut text_input) in &mut text_input_query {
+    for (input_entity, inactive, mut text_input, mut cursor_timer) in &mut text_input_query {
         if inactive.0 {
             continue;
         }
@@ -150,6 +162,8 @@ fn keyboard(
 
         for event in events.read() {
             if !event.state.is_pressed() {
+                // Resume blinking the cursor when the user releases a key.
+                cursor_timer.should_reset = false;
                 continue;
             };
 
@@ -158,22 +172,18 @@ fn keyboard(
                     if let Some(behind) = text.sections[0].value.pop() {
                         text.sections[2].value.insert(0, behind);
                     }
-                    continue;
                 }
                 KeyCode::ArrowRight => {
                     if !text.sections[2].value.is_empty() {
                         let ahead = text.sections[2].value.remove(0);
                         text.sections[0].value.push(ahead);
                     }
-                    continue;
                 }
                 KeyCode::Backspace => {
                     text.sections[0].value.pop();
-                    continue;
                 }
                 KeyCode::Delete => {
                     text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
-                    continue;
                 }
                 KeyCode::Enter => {
                     submitted_value = Some(format!(
@@ -187,7 +197,6 @@ fn keyboard(
                 }
                 KeyCode::Space => {
                     text.sections[0].value.push(' ');
-                    continue;
                 }
                 _ => {}
             }
@@ -195,6 +204,9 @@ fn keyboard(
             if let Key::Character(ref s) = event.logical_key {
                 text.sections[0].value.push_str(s.as_str());
             }
+
+            // Reset the cursor timer when the user types.
+            cursor_timer.should_reset = true;
         }
 
         let value = format!("{}{}", text.sections[0].value, text.sections[2].value);
@@ -282,7 +294,7 @@ fn blink_cursor(
     )>,
     mut inner_text: InnerText,
 ) {
-    for (entity, style, mut timer, inactive) in &mut input_query {
+    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
         if !inactive.is_changed() {
             continue;
         }
@@ -297,7 +309,7 @@ fn blink_cursor(
             style.0.color
         };
 
-        timer.0.reset();
+        cursor_timer.timer.reset();
     }
 }
 
@@ -311,18 +323,23 @@ fn show_hide_cursor(
     mut inner_text: InnerText,
     time: Res<Time>,
 ) {
-    for (entity, style, mut timer, inactive) in &mut input_query {
+    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
         if inactive.0 {
-            continue;
-        }
-
-        if !timer.0.tick(time.delta()).just_finished() {
             continue;
         }
 
         let Some(mut text) = inner_text.get_mut(entity) else {
             continue;
         };
+
+        if cursor_timer.should_reset {
+            cursor_timer.timer.reset();
+            text.sections[1].style.color = style.0.color;
+        }
+
+        if !cursor_timer.timer.tick(time.delta()).just_finished() {
+            continue;
+        }
 
         if text.sections[1].style.color != Color::NONE {
             text.sections[1].style.color = Color::NONE;
