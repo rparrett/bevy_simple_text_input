@@ -162,8 +162,6 @@ fn keyboard(
 
         for event in events.read() {
             if !event.state.is_pressed() {
-                // Resume blinking the cursor when the user releases a key.
-                cursor_timer.should_reset = false;
                 continue;
             };
 
@@ -171,19 +169,27 @@ fn keyboard(
                 KeyCode::ArrowLeft => {
                     if let Some(behind) = text.sections[0].value.pop() {
                         text.sections[2].value.insert(0, behind);
+                        cursor_timer.should_reset = true;
+                        continue;
                     }
                 }
                 KeyCode::ArrowRight => {
                     if !text.sections[2].value.is_empty() {
                         let ahead = text.sections[2].value.remove(0);
                         text.sections[0].value.push(ahead);
+                        cursor_timer.should_reset = true;
+                        continue;
                     }
                 }
                 KeyCode::Backspace => {
                     text.sections[0].value.pop();
+                    cursor_timer.should_reset = true;
+                    continue;
                 }
                 KeyCode::Delete => {
                     text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
+                    cursor_timer.should_reset = true;
+                    continue;
                 }
                 KeyCode::Enter => {
                     submitted_value = Some(format!(
@@ -197,16 +203,16 @@ fn keyboard(
                 }
                 KeyCode::Space => {
                     text.sections[0].value.push(' ');
+                    cursor_timer.should_reset = true;
+                    continue;
                 }
                 _ => {}
             }
 
             if let Key::Character(ref s) = event.logical_key {
                 text.sections[0].value.push_str(s.as_str());
+                cursor_timer.should_reset = true;
             }
-
-            // Reset the cursor timer when the user types.
-            cursor_timer.should_reset = true;
         }
 
         let value = format!("{}{}", text.sections[0].value, text.sections[2].value);
@@ -328,18 +334,22 @@ fn show_hide_cursor(
             continue;
         }
 
-        let Some(mut text) = inner_text.get_mut(entity) else {
-            continue;
-        };
-
-        if cursor_timer.should_reset {
+        if cursor_timer.is_changed() && cursor_timer.should_reset {
             cursor_timer.timer.reset();
-            text.sections[1].style.color = style.0.color;
+            cursor_timer.should_reset = false;
+            if let Some(mut text) = inner_text.get_mut(entity) {
+                text.sections[1].style.color = style.0.color;
+            }
+            continue;
         }
 
         if !cursor_timer.timer.tick(time.delta()).just_finished() {
             continue;
         }
+
+        let Some(mut text) = inner_text.get_mut(entity) else {
+            continue;
+        };
 
         if text.sections[1].style.color != Color::NONE {
             text.sections[1].style.color = Color::NONE;
