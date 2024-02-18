@@ -40,7 +40,7 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 
 /// A bundle providing the additional components required for a text input.
 ///
-/// Add this to a `NodeBundle`.
+/// Add this to a [`NodeBundle`].
 ///
 /// Examples:
 /// ```rust
@@ -60,7 +60,7 @@ pub struct TextInputBundle {
 }
 
 impl TextInputBundle {
-    /// Creates a new `TextInputBundle` with the specified `TextStyle`.
+    /// Creates a new [`TextInputBundle`] with the specified [`TextStyle`].
     pub fn new(text_style: TextStyle) -> Self {
         Self {
             text_style: TextInputTextStyle(text_style),
@@ -68,7 +68,7 @@ impl TextInputBundle {
         }
     }
 
-    /// Creates a new `TextInputBundle` with the specified `TextStyle` and starting text.
+    /// Creates a new [`TextInputBundle`] with the specified [`TextStyle`] and starting text.
     pub fn with_starting_text(text_style: TextStyle, starting_text: String) -> Self {
         Self {
             text_style: TextInputTextStyle(text_style),
@@ -78,7 +78,7 @@ impl TextInputBundle {
     }
 }
 
-/// The `TextStyle` that will be used when creating the text input's inner `TextBundle`.
+/// The [`TextStyle`] that will be used when creating the text input's inner [`TextBundle`].
 #[derive(Component, Default)]
 pub struct TextInputTextStyle(pub TextStyle);
 
@@ -112,7 +112,7 @@ pub struct TextInputSubmitEvent {
     pub value: String,
 }
 
-/// A convenience parameter for dealing with a `TextInput`'s inner `Text` entity.
+/// A convenience parameter for dealing with a [`TextInput`]'s inner [`Text`] entity.
 #[derive(SystemParam)]
 struct InnerText<'w, 's> {
     text_query: Query<'w, 's, &'static mut Text, With<TextInputInner>>,
