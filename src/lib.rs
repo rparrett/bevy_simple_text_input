@@ -273,7 +273,8 @@ fn create(
     }
 }
 
-fn blink_cursor(
+// Shows or hides the cursor based on the text input's `inactive` property.
+fn show_hide_cursor(
     mut input_query: Query<(
         Entity,
         &TextInputTextStyle,
@@ -301,7 +302,8 @@ fn blink_cursor(
     }
 }
 
-fn show_hide_cursor(
+// Blinks the cursor on a timer.
+fn blink_cursor(
     mut input_query: Query<(
         Entity,
         &TextInputTextStyle,
