@@ -127,9 +127,29 @@ impl<'w, 's> InnerText<'w, 's> {
     }
 }
 
+/// Used to set the visibility of the cursor based on the `active` parameter.
+#[macro_export]
+macro_rules! set_cursor {
+    ($active:expr, $active_color:expr, $text:expr, $timer:expr) => {
+        if $active {
+            $text.sections[1].style.color = $active_color;
+        } else {
+            $text.sections[1].style.color = Color::NONE;
+        }
+
+        $timer.0.reset();
+    };
+}
+
 fn keyboard(
     mut events: EventReader<KeyboardInput>,
-    mut text_input_query: Query<(Entity, &TextInputInactive, &mut TextInput)>,
+    mut text_input_query: Query<(
+        Entity,
+        &TextInputInactive,
+        &TextInputTextStyle,
+        &mut TextInput,
+        &mut TextInputCursorTimer,
+    )>,
     mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
@@ -137,7 +157,7 @@ fn keyboard(
         return;
     }
 
-    for (input_entity, inactive, mut text_input) in &mut text_input_query {
+    for (input_entity, inactive, style, mut text_input, mut timer) in &mut text_input_query {
         if inactive.0 {
             continue;
         }
@@ -158,22 +178,18 @@ fn keyboard(
                     if let Some(behind) = text.sections[0].value.pop() {
                         text.sections[2].value.insert(0, behind);
                     }
-                    continue;
                 }
                 KeyCode::ArrowRight => {
                     if !text.sections[2].value.is_empty() {
                         let ahead = text.sections[2].value.remove(0);
                         text.sections[0].value.push(ahead);
                     }
-                    continue;
                 }
                 KeyCode::Backspace => {
                     text.sections[0].value.pop();
-                    continue;
                 }
                 KeyCode::Delete => {
                     text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
-                    continue;
                 }
                 KeyCode::Enter => {
                     submitted_value = Some(format!(
@@ -187,7 +203,6 @@ fn keyboard(
                 }
                 KeyCode::Space => {
                     text.sections[0].value.push(' ');
-                    continue;
                 }
                 _ => {}
             }
@@ -195,6 +210,8 @@ fn keyboard(
             if let Key::Character(ref s) = event.logical_key {
                 text.sections[0].value.push_str(s.as_str());
             }
+
+            set_cursor!(true, style.0.color, text, timer);
         }
 
         let value = format!("{}{}", text.sections[0].value, text.sections[2].value);
@@ -291,13 +308,7 @@ fn blink_cursor(
             continue;
         };
 
-        text.sections[1].style.color = if inactive.0 {
-            Color::NONE
-        } else {
-            style.0.color
-        };
-
-        timer.0.reset();
+        set_cursor!(!inactive.0, style.0.color, text, timer);
     }
 }
 
@@ -324,11 +335,9 @@ fn show_hide_cursor(
             continue;
         };
 
-        if text.sections[1].style.color != Color::NONE {
-            text.sections[1].style.color = Color::NONE;
-        } else {
-            text.sections[1].style.color = style.0.color;
-        }
+        let active = text.sections[1].style.color == Color::NONE;
+
+        set_cursor!(active, style.0.color, text, timer);
     }
 }
 
