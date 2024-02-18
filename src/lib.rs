@@ -40,7 +40,7 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 
 /// A bundle providing the additional components required for a text input.
 ///
-/// Add this to a `NodeBundle`.
+/// Add this to a [`NodeBundle`].
 ///
 /// Examples:
 /// ```rust
@@ -60,7 +60,7 @@ pub struct TextInputBundle {
 }
 
 impl TextInputBundle {
-    /// Creates a new `TextInputBundle` with the specified `TextStyle`.
+    /// Creates a new [`TextInputBundle`] with the specified [`TextStyle`].
     pub fn new(text_style: TextStyle) -> Self {
         Self {
             text_style: TextInputTextStyle(text_style),
@@ -68,7 +68,7 @@ impl TextInputBundle {
         }
     }
 
-    /// Creates a new `TextInputBundle` with the specified `TextStyle` and starting text.
+    /// Creates a new [`TextInputBundle`] with the specified [`TextStyle`] and starting text.
     pub fn with_starting_text(text_style: TextStyle, starting_text: String) -> Self {
         Self {
             text_style: TextInputTextStyle(text_style),
@@ -78,7 +78,7 @@ impl TextInputBundle {
     }
 }
 
-/// The `TextStyle` that will be used when creating the text input's inner `TextBundle`.
+/// The [`TextStyle`] that will be used when creating the text input's inner [`TextBundle`].
 #[derive(Component, Default)]
 pub struct TextInputTextStyle(pub TextStyle);
 
@@ -86,13 +86,20 @@ pub struct TextInputTextStyle(pub TextStyle);
 #[derive(Component, Default)]
 pub struct TextInputInactive(pub bool);
 
-/// The timer controlling the blinking cursor. The cursor is toggled when the timer is finished.
+/// A component that manages the cursor's blinking.
 #[derive(Component)]
-pub struct TextInputCursorTimer(pub Timer);
+pub struct TextInputCursorTimer {
+    /// The timer that blinks the cursor on and off, and resets when the user types.
+    pub timer: Timer,
+    should_reset: bool,
+}
 
 impl Default for TextInputCursorTimer {
     fn default() -> Self {
-        Self(Timer::from_seconds(0.5, TimerMode::Repeating))
+        Self {
+            timer: Timer::from_seconds(0.5, TimerMode::Repeating),
+            should_reset: false,
+        }
     }
 }
 
@@ -112,7 +119,7 @@ pub struct TextInputSubmitEvent {
     pub value: String,
 }
 
-/// A convenience parameter for dealing with a `TextInput`'s inner `Text` entity.
+/// A convenience parameter for dealing with a [`TextInput`]'s inner [`Text`] entity.
 #[derive(SystemParam)]
 struct InnerText<'w, 's> {
     text_query: Query<'w, 's, &'static mut Text, With<TextInputInner>>,
@@ -129,7 +136,12 @@ impl<'w, 's> InnerText<'w, 's> {
 
 fn keyboard(
     mut events: EventReader<KeyboardInput>,
-    mut text_input_query: Query<(Entity, &TextInputInactive, &mut TextInput)>,
+    mut text_input_query: Query<(
+        Entity,
+        &TextInputInactive,
+        &mut TextInput,
+        &mut TextInputCursorTimer,
+    )>,
     mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
@@ -137,7 +149,7 @@ fn keyboard(
         return;
     }
 
-    for (input_entity, inactive, mut text_input) in &mut text_input_query {
+    for (input_entity, inactive, mut text_input, mut cursor_timer) in &mut text_input_query {
         if inactive.0 {
             continue;
         }
@@ -157,22 +169,26 @@ fn keyboard(
                 KeyCode::ArrowLeft => {
                     if let Some(behind) = text.sections[0].value.pop() {
                         text.sections[2].value.insert(0, behind);
+                        cursor_timer.should_reset = true;
+                        continue;
                     }
-                    continue;
                 }
                 KeyCode::ArrowRight => {
                     if !text.sections[2].value.is_empty() {
                         let ahead = text.sections[2].value.remove(0);
                         text.sections[0].value.push(ahead);
+                        cursor_timer.should_reset = true;
+                        continue;
                     }
-                    continue;
                 }
                 KeyCode::Backspace => {
                     text.sections[0].value.pop();
+                    cursor_timer.should_reset = true;
                     continue;
                 }
                 KeyCode::Delete => {
                     text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
+                    cursor_timer.should_reset = true;
                     continue;
                 }
                 KeyCode::Enter => {
@@ -187,6 +203,7 @@ fn keyboard(
                 }
                 KeyCode::Space => {
                     text.sections[0].value.push(' ');
+                    cursor_timer.should_reset = true;
                     continue;
                 }
                 _ => {}
@@ -194,6 +211,7 @@ fn keyboard(
 
             if let Key::Character(ref s) = event.logical_key {
                 text.sections[0].value.push_str(s.as_str());
+                cursor_timer.should_reset = true;
             }
         }
 
@@ -283,7 +301,7 @@ fn show_hide_cursor(
     )>,
     mut inner_text: InnerText,
 ) {
-    for (entity, style, mut timer, inactive) in &mut input_query {
+    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
         if !inactive.is_changed() {
             continue;
         }
@@ -298,7 +316,7 @@ fn show_hide_cursor(
             style.0.color
         };
 
-        timer.0.reset();
+        cursor_timer.timer.reset();
     }
 }
 
@@ -313,12 +331,21 @@ fn blink_cursor(
     mut inner_text: InnerText,
     time: Res<Time>,
 ) {
-    for (entity, style, mut timer, inactive) in &mut input_query {
+    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
         if inactive.0 {
             continue;
         }
 
-        if !timer.0.tick(time.delta()).just_finished() {
+        if cursor_timer.is_changed() && cursor_timer.should_reset {
+            cursor_timer.timer.reset();
+            cursor_timer.should_reset = false;
+            if let Some(mut text) = inner_text.get_mut(entity) {
+                text.sections[1].style.color = style.0.color;
+            }
+            continue;
+        }
+
+        if !cursor_timer.timer.tick(time.delta()).just_finished() {
             continue;
         }
 
