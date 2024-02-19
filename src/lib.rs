@@ -32,6 +32,10 @@ impl Plugin for TextInputPlugin {
                     update_style,
                 ),
             )
+            .register_type::<TextInputTextStyle>()
+            .register_type::<TextInputInactive>()
+            .register_type::<TextInputCursorTimer>()
+            .register_type::<TextInputInner>()
             .register_type::<TextInput>();
     }
 }
@@ -50,7 +54,7 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 ///     commands.spawn((NodeBundle::default(), TextInputBundle::default()));
 /// }
 /// ```
-#[derive(Bundle, Default)]
+#[derive(Bundle, Default, Reflect)]
 pub struct TextInputBundle {
     text_style: TextInputTextStyle,
     inactive: TextInputInactive,
@@ -79,15 +83,15 @@ impl TextInputBundle {
 }
 
 /// The [`TextStyle`] that will be used when creating the text input's inner [`TextBundle`].
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct TextInputTextStyle(pub TextStyle);
 
 /// If true, the text input does not respond to keyboard events.
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct TextInputInactive(pub bool);
 
 /// A component that manages the cursor's blinking.
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct TextInputCursorTimer {
     /// The timer that blinks the cursor on and off, and resets when the user types.
     pub timer: Timer,
@@ -107,7 +111,7 @@ impl Default for TextInputCursorTimer {
 #[derive(Component, Default, Reflect)]
 pub struct TextInput(pub String);
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 struct TextInputInner;
 
 /// An event that is fired when the user presses the enter key.
