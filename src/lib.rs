@@ -27,6 +27,7 @@ impl Plugin for TextInputPlugin {
                 (
                     create,
                     keyboard,
+                    update_value.after(keyboard),
                     blink_cursor,
                     show_hide_cursor,
                     update_style,
@@ -59,6 +60,7 @@ pub struct TextInputBundle {
     text_style: TextInputTextStyle,
     inactive: TextInputInactive,
     cursor_timer: TextInputCursorTimer,
+    cursor_pos: TextInputCursorPos,
     text_input: TextInput,
     interaction: Interaction,
 }
@@ -111,6 +113,10 @@ impl Default for TextInputCursorTimer {
 #[derive(Component, Default, Reflect)]
 pub struct TextInput(pub String);
 
+/// A component containing the current text cursor position.
+#[derive(Component, Default, Reflect)]
+pub struct TextInputCursorPos(pub usize);
+
 #[derive(Component, Reflect)]
 struct TextInputInner;
 
@@ -144,23 +150,21 @@ fn keyboard(
         Entity,
         &TextInputInactive,
         &mut TextInput,
+        &mut TextInputCursorPos,
         &mut TextInputCursorTimer,
     )>,
-    mut inner_text: InnerText,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
     if events.is_empty() {
         return;
     }
 
-    for (input_entity, inactive, mut text_input, mut cursor_timer) in &mut text_input_query {
+    for (input_entity, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
+        &mut text_input_query
+    {
         if inactive.0 {
             continue;
         }
-
-        let Some(mut text) = inner_text.get_mut(input_entity) else {
-            continue;
-        };
 
         let mut submitted_value = None;
 
@@ -169,44 +173,51 @@ fn keyboard(
                 continue;
             };
 
+            let pos = cursor_pos.bypass_change_detection().0;
+
             match event.key_code {
                 KeyCode::ArrowLeft => {
-                    if let Some(behind) = text.sections[0].value.pop() {
-                        text.sections[2].value.insert(0, behind);
+                    if pos > 0 {
+                        cursor_pos.0 -= 1;
+
                         cursor_timer.should_reset = true;
                         continue;
                     }
                 }
                 KeyCode::ArrowRight => {
-                    if !text.sections[2].value.is_empty() {
-                        let ahead = text.sections[2].value.remove(0);
-                        text.sections[0].value.push(ahead);
+                    if pos < text_input.0.len() {
+                        cursor_pos.0 += 1;
+
                         cursor_timer.should_reset = true;
                         continue;
                     }
                 }
                 KeyCode::Backspace => {
-                    text.sections[0].value.pop();
-                    cursor_timer.should_reset = true;
-                    continue;
+                    if pos > 0 {
+                        cursor_pos.0 -= 1;
+                        text_input.0.remove(cursor_pos.0);
+
+                        cursor_timer.should_reset = true;
+                        continue;
+                    }
                 }
                 KeyCode::Delete => {
-                    text.sections[2].value = text.sections[2].value.chars().skip(1).collect();
-                    cursor_timer.should_reset = true;
-                    continue;
+                    if pos < text_input.0.len() {
+                        text_input.0.remove(pos);
+                        cursor_timer.should_reset = true;
+                        continue;
+                    }
                 }
                 KeyCode::Enter => {
-                    submitted_value = Some(format!(
-                        "{}{}",
-                        text.sections[0].value, text.sections[2].value
-                    ));
+                    submitted_value = Some(std::mem::take(&mut text_input.0));
+                    cursor_pos.0 = 0;
 
-                    text.sections[0].value.clear();
-                    text.sections[2].value.clear();
                     continue;
                 }
                 KeyCode::Space => {
-                    text.sections[0].value.push(' ');
+                    text_input.0.insert(pos, ' ');
+                    cursor_pos.0 += 1;
+
                     cursor_timer.should_reset = true;
                     continue;
                 }
@@ -214,14 +225,11 @@ fn keyboard(
             }
 
             if let Key::Character(ref s) = event.logical_key {
-                text.sections[0].value.push_str(s.as_str());
+                text_input.0.insert_str(cursor_pos.0, s);
+                cursor_pos.0 += 1;
+
                 cursor_timer.should_reset = true;
             }
-        }
-
-        let value = format!("{}{}", text.sections[0].value, text.sections[2].value);
-        if !value.eq(&text_input.bypass_change_detection().0) {
-            text_input.0 = value;
         }
 
         if let Some(value) = submitted_value {
@@ -230,9 +238,35 @@ fn keyboard(
                 value,
             });
         }
+    }
+}
+
+fn update_value(
+    mut input_query: Query<
+        (Entity, Ref<TextInput>, &mut TextInputCursorPos),
+        Or<(Changed<TextInput>, Changed<TextInputCursorPos>)>,
+    >,
+    mut inner_text: InnerText,
+) {
+    for (entity, text_input, mut cursor_pos) in &mut input_query {
+        let Some(mut text) = inner_text.get_mut(entity) else {
+            continue;
+        };
+
+        if text_input.is_changed() && !cursor_pos.is_changed() {
+            cursor_pos.0 = text_input.0.len();
+        }
+
+        if cursor_pos.is_changed() {
+            cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.len());
+        }
+
+        let (before, after) = text_input.0.split_at(cursor_pos.0);
+        text.sections[0].value = before.to_string();
+        text.sections[2].value = after.to_string();
 
         // If the cursor is between two characters, use the zero-width cursor.
-        if text.sections[2].value.is_empty() {
+        if cursor_pos.0 >= text_input.0.len() {
             text.sections[1].value = "}".to_string();
         } else {
             text.sections[1].value = "|".to_string();
