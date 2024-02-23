@@ -3,11 +3,11 @@
 use bevy::prelude::*;
 use bevy_simple_text_input::{TextInput, TextInputBundle, TextInputPlugin};
 
-const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.5058824, 0.54901963, 0.972549);
-const BORDER_COLOR_INACTIVE: Color = Color::rgb(0.2509804, 0.2509804, 0.2509804);
-const BORDER_COLOR_HOVER: Color = Color::rgb(0.8980392, 0.8980392, 0.8980392);
+const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.75, 0.52, 0.99);
+const BORDER_COLOR_INACTIVE: Color = Color::rgb(0.25, 0.25, 0.25);
+const BORDER_COLOR_HOVER: Color = Color::rgb(0.9, 0.9, 0.9);
 const TEXT_COLOR: Color = BORDER_COLOR_HOVER;
-const BACKGROUND_COLOR: Color = Color::rgb(0.14901961, 0.14901961, 0.14901961);
+const BACKGROUND_COLOR: Color = Color::rgb(0.15, 0.15, 0.15);
 
 fn main() {
     App::new()
