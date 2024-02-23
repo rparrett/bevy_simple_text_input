@@ -60,6 +60,7 @@ pub struct TextInputBundle {
     text_style: TextInputTextStyle,
     inactive: TextInputInactive,
     cursor_timer: TextInputCursorTimer,
+    cursor_pos: TextInputCursorPos,
     text_input: TextInput,
     interaction: Interaction,
 }
@@ -77,10 +78,7 @@ impl TextInputBundle {
     pub fn with_starting_text(text_style: TextStyle, starting_text: String) -> Self {
         Self {
             text_style: TextInputTextStyle(text_style),
-            text_input: TextInput {
-                value: starting_text,
-                ..default()
-            },
+            text_input: TextInput(starting_text),
             ..default()
         }
     }
@@ -113,20 +111,11 @@ impl Default for TextInputCursorTimer {
 
 /// A component containing the current value of the text input.
 #[derive(Component, Default, Reflect)]
-pub struct TextInput {
-    cursor_position: usize,
-    value: String,
-}
-impl TextInput {
-    pub fn get_value(&self) -> &str {
-        &self.value
-    }
+pub struct TextInput(pub String);
 
-    pub fn set_value(&mut self, value: String) {
-        self.cursor_position = value.len();
-        self.value = value;
-    }
-}
+/// A component containing the current text cursor position.
+#[derive(Component, Default, Reflect)]
+pub struct TextInputCursorPos(pub usize);
 
 #[derive(Component, Reflect)]
 struct TextInputInner;
@@ -161,6 +150,7 @@ fn keyboard(
         Entity,
         &TextInputInactive,
         &mut TextInput,
+        &mut TextInputCursorPos,
         &mut TextInputCursorTimer,
     )>,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
@@ -169,7 +159,9 @@ fn keyboard(
         return;
     }
 
-    for (input_entity, inactive, mut text_input, mut cursor_timer) in &mut text_input_query {
+    for (input_entity, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
+        &mut text_input_query
+    {
         if inactive.0 {
             continue;
         }
@@ -181,51 +173,50 @@ fn keyboard(
                 continue;
             };
 
+            let pos = cursor_pos.bypass_change_detection().0;
+
             match event.key_code {
                 KeyCode::ArrowLeft => {
-                    if text_input.cursor_position > 0 {
-                        text_input.cursor_position -= 1;
+                    if pos > 0 {
+                        cursor_pos.0 -= 1;
 
                         cursor_timer.should_reset = true;
                         continue;
                     }
                 }
                 KeyCode::ArrowRight => {
-                    if text_input.cursor_position < text_input.value.len() {
-                        text_input.cursor_position += 1;
+                    if pos < text_input.0.len() {
+                        cursor_pos.0 += 1;
 
                         cursor_timer.should_reset = true;
                         continue;
                     }
                 }
                 KeyCode::Backspace => {
-                    if text_input.cursor_position > 0 {
-                        let pos = text_input.cursor_position - 1;
-                        text_input.value.remove(pos);
-                        text_input.cursor_position -= 1;
+                    if pos > 0 {
+                        cursor_pos.0 -= 1;
+                        text_input.0.remove(cursor_pos.0);
 
                         cursor_timer.should_reset = true;
                         continue;
                     }
                 }
                 KeyCode::Delete => {
-                    if text_input.cursor_position < text_input.value.len() {
-                        let pos = text_input.cursor_position;
-                        text_input.value.remove(pos);
+                    if pos < text_input.0.len() {
+                        text_input.0.remove(pos);
                         cursor_timer.should_reset = true;
                         continue;
                     }
                 }
                 KeyCode::Enter => {
-                    submitted_value = Some(std::mem::take(&mut text_input.value));
-                    text_input.cursor_position = 0;
+                    submitted_value = Some(std::mem::take(&mut text_input.0));
+                    cursor_pos.0 = 0;
 
                     continue;
                 }
                 KeyCode::Space => {
-                    let pos = text_input.cursor_position;
-                    text_input.value.insert(pos, ' ');
-                    text_input.cursor_position += 1;
+                    text_input.0.insert(pos, ' ');
+                    cursor_pos.0 += 1;
 
                     cursor_timer.should_reset = true;
                     continue;
@@ -234,10 +225,8 @@ fn keyboard(
             }
 
             if let Key::Character(ref s) = event.logical_key {
-                let pos = text_input.cursor_position;
-
-                text_input.value.insert_str(pos, s);
-                text_input.cursor_position += 1;
+                text_input.0.insert_str(cursor_pos.0, s);
+                cursor_pos.0 += 1;
 
                 cursor_timer.should_reset = true;
             }
@@ -253,20 +242,27 @@ fn keyboard(
 }
 
 fn update_value(
-    input_query: Query<(Entity, &TextInput), Changed<TextInput>>,
+    mut input_query: Query<
+        (Entity, Ref<TextInput>, &mut TextInputCursorPos),
+        Or<(Changed<TextInput>, Changed<TextInputCursorPos>)>,
+    >,
     mut inner_text: InnerText,
 ) {
-    for (entity, text_input) in &input_query {
+    for (entity, text_input, mut cursor_pos) in &mut input_query {
         let Some(mut text) = inner_text.get_mut(entity) else {
             continue;
         };
 
-        let (before, after) = text_input.value.split_at(text_input.cursor_position);
+        if text_input.is_changed() && !cursor_pos.is_changed() {
+            cursor_pos.0 = text_input.0.len();
+        }
+
+        let (before, after) = text_input.0.split_at(cursor_pos.0);
         text.sections[0].value = before.to_string();
         text.sections[2].value = after.to_string();
 
         // If the cursor is between two characters, use the zero-width cursor.
-        if text_input.cursor_position >= text_input.value.len() {
+        if cursor_pos.0 >= text_input.0.len() {
             text.sections[1].value = "}".to_string();
         } else {
             text.sections[1].value = "|".to_string();
@@ -287,7 +283,7 @@ fn create(
                         sections: vec![
                             // Pre-cursor
                             TextSection {
-                                value: text_input.value.clone(),
+                                value: text_input.0.clone(),
                                 style: style.0.clone(),
                             },
                             // cursor

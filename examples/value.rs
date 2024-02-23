@@ -3,6 +3,12 @@
 use bevy::prelude::*;
 use bevy_simple_text_input::{TextInput, TextInputBundle, TextInputPlugin};
 
+const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.5058824, 0.54901963, 0.972549);
+const BORDER_COLOR_INACTIVE: Color = Color::rgb(0.2509804, 0.2509804, 0.2509804);
+const BORDER_COLOR_HOVER: Color = Color::rgb(0.8980392, 0.8980392, 0.8980392);
+const TEXT_COLOR: Color = BORDER_COLOR_HOVER;
+const BACKGROUND_COLOR: Color = Color::rgb(0.14901961, 0.14901961, 0.14901961);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -20,7 +26,7 @@ fn setup(mut commands: Commands) {
 
     let text_style = TextStyle {
         font_size: 40.,
-        color: Color::rgb(0.9, 0.9, 0.9),
+        color: TEXT_COLOR,
         ..default()
     };
 
@@ -45,8 +51,8 @@ fn setup(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(5.0)),
                         ..default()
                     },
-                    border_color: BorderColor(Color::BLACK),
-                    background_color: Color::RED.into(),
+                    border_color: BorderColor(BORDER_COLOR_ACTIVE),
+                    background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
                 TextInputBundle::with_starting_text(text_style.clone(), "1".to_string()),
@@ -62,8 +68,8 @@ fn setup(mut commands: Commands) {
                             justify_content: JustifyContent::Center,
                             ..default()
                         },
-                        border_color: BorderColor(Color::BLACK),
-                        background_color: Color::RED.into(),
+                        border_color: BorderColor(BORDER_COLOR_INACTIVE),
+                        background_color: BACKGROUND_COLOR.into(),
                         ..default()
                     },
                     IncValueButton,
@@ -85,31 +91,28 @@ fn button_system(
 
         let mut text_input = text_input_query.single_mut();
 
-        let current_value = text_input.get_value().parse::<i32>().unwrap_or(0);
+        let current_value = text_input.0.parse::<i32>().unwrap_or(0);
 
-        text_input.set_value(format!("{}", current_value + 1));
+        text_input.0 = format!("{}", current_value + 1);
     }
 }
 
 fn button_style_system(
     mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor, &mut BorderColor),
+        (&Interaction, &mut BorderColor),
         (Changed<Interaction>, With<Button>),
     >,
 ) {
-    for (interaction, mut color, mut border_color) in &mut interaction_query {
+    for (interaction, mut border_color) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
-                //*color = PRESSED_BUTTON.into();
-                border_color.0 = Color::RED;
+                border_color.0 = BORDER_COLOR_ACTIVE;
             }
             Interaction::Hovered => {
-                //*color = HOVERED_BUTTON.into();
-                border_color.0 = Color::WHITE;
+                border_color.0 = BORDER_COLOR_HOVER;
             }
             Interaction::None => {
-                //*color = NORMAL_BUTTON.into();
-                border_color.0 = Color::BLACK;
+                border_color.0 = BORDER_COLOR_INACTIVE;
             }
         }
     }
