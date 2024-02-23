@@ -3,8 +3,10 @@
 use bevy::prelude::*;
 use bevy_simple_text_input::{TextInputBundle, TextInputInactive, TextInputPlugin};
 
-const BORDER_COLOR_ACTIVE: Color = Color::VIOLET;
-const BORDER_COLOR_INACTIVE: Color = Color::BLACK;
+const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.75, 0.52, 0.99);
+const BORDER_COLOR_INACTIVE: Color = Color::rgb(0.25, 0.25, 0.25);
+const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
+const BACKGROUND_COLOR: Color = Color::rgb(0.15, 0.15, 0.15);
 
 fn main() {
     App::new()
@@ -44,13 +46,13 @@ fn setup(mut commands: Commands) {
                         ..default()
                     },
                     border_color: BORDER_COLOR_ACTIVE.into(),
-                    background_color: Color::INDIGO.into(),
+                    background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
                 TextInputBundle::with_starting_text(
                     TextStyle {
                         font_size: 40.,
-                        color: Color::rgb(0.9, 0.9, 0.9),
+                        color: TEXT_COLOR,
                         ..default()
                     },
                     "hello".to_owned(),

@@ -3,6 +3,10 @@
 use bevy::prelude::*;
 use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSubmitEvent};
 
+const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.75, 0.52, 0.99);
+const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
+const BACKGROUND_COLOR: Color = Color::rgb(0.15, 0.15, 0.15);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -35,13 +39,13 @@ fn setup(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(5.0)),
                         ..default()
                     },
-                    border_color: BorderColor(Color::BLACK),
-                    background_color: Color::RED.into(),
+                    border_color: BORDER_COLOR_ACTIVE.into(),
+                    background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
                 TextInputBundle::new(TextStyle {
                     font_size: 40.,
-                    color: Color::rgb(0.9, 0.9, 0.9),
+                    color: TEXT_COLOR,
                     ..default()
                 }),
             ));
