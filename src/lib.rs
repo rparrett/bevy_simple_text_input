@@ -242,9 +242,9 @@ fn keyboard(
 
 fn create(
     mut commands: Commands,
-    query: Query<(Entity, &TextInputTextStyle, &TextInput), Added<TextInput>>,
+    query: Query<(Entity, &TextInputTextStyle, &TextInput, &TextInputInactive), Added<TextInput>>,
 ) {
-    for (entity, style, text_input) in &query {
+    for (entity, style, text_input, inactive) in &query {
         let text = commands
             .spawn((
                 TextBundle {
@@ -261,6 +261,11 @@ fn create(
                                 value: "}".to_string(),
                                 style: TextStyle {
                                     font: CURSOR_HANDLE,
+                                    color: if inactive.0 {
+                                        Color::NONE
+                                    } else {
+                                        style.0.color
+                                    },
                                     ..style.0.clone()
                                 },
                             },
@@ -297,19 +302,18 @@ fn create(
 
 // Shows or hides the cursor based on the text input's `inactive` property.
 fn show_hide_cursor(
-    mut input_query: Query<(
-        Entity,
-        &TextInputTextStyle,
-        &mut TextInputCursorTimer,
-        Ref<TextInputInactive>,
-    )>,
+    mut input_query: Query<
+        (
+            Entity,
+            &TextInputTextStyle,
+            &mut TextInputCursorTimer,
+            &TextInputInactive,
+        ),
+        Changed<TextInputInactive>,
+    >,
     mut inner_text: InnerText,
 ) {
     for (entity, style, mut cursor_timer, inactive) in &mut input_query {
-        if !inactive.is_changed() {
-            continue;
-        }
-
         let Some(mut text) = inner_text.get_mut(entity) else {
             continue;
         };
