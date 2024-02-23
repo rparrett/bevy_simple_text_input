@@ -257,6 +257,10 @@ fn update_value(
             cursor_pos.0 = text_input.0.len();
         }
 
+        if cursor_pos.is_changed() {
+            cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.len());
+        }
+
         let (before, after) = text_input.0.split_at(cursor_pos.0);
         text.sections[0].value = before.to_string();
         text.sections[2].value = after.to_string();
