@@ -45,18 +45,18 @@ fn setup(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(5.0)),
                         ..default()
                     },
-                    border_color: BORDER_COLOR_ACTIVE.into(),
+                    border_color: BORDER_COLOR_INACTIVE.into(),
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::with_starting_text(
-                    TextStyle {
+                TextInputBundle::default()
+                    .with_text_style(TextStyle {
                         font_size: 40.,
                         color: TEXT_COLOR,
                         ..default()
-                    },
-                    "hello".to_owned(),
-                ),
+                    })
+                    .with_value("Click Me".to_owned())
+                    .with_inactive(true),
             ));
         });
 }

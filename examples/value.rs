@@ -1,7 +1,7 @@
 //! An example showing a very basic implementation.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInput, TextInputBundle, TextInputPlugin};
+use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSettings, TextInputValue};
 
 const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.75, 0.52, 0.99);
 const BORDER_COLOR_INACTIVE: Color = Color::rgb(0.25, 0.25, 0.25);
@@ -55,7 +55,12 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::with_starting_text(text_style.clone(), "1".to_string()),
+                TextInputBundle::default()
+                    .with_text_style(text_style.clone())
+                    .with_value("1".to_owned())
+                    .with_settings(TextInputSettings {
+                        retain_on_submit: true,
+                    }),
             ));
 
             parent
@@ -82,7 +87,7 @@ fn setup(mut commands: Commands) {
 
 fn button_system(
     interaction_query: Query<&Interaction, (Changed<Interaction>, With<IncValueButton>)>,
-    mut text_input_query: Query<&mut TextInput>,
+    mut text_input_query: Query<&mut TextInputValue>,
 ) {
     for interaction in &interaction_query {
         if !matches!(interaction, Interaction::Pressed) {

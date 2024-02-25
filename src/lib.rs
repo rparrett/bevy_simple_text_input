@@ -33,11 +33,12 @@ impl Plugin for TextInputPlugin {
                     update_style,
                 ),
             )
+            .register_type::<TextInputSettings>()
             .register_type::<TextInputTextStyle>()
             .register_type::<TextInputInactive>()
             .register_type::<TextInputCursorTimer>()
             .register_type::<TextInputInner>()
-            .register_type::<TextInput>();
+            .register_type::<TextInputValue>();
     }
 }
 
@@ -57,30 +58,45 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 /// ```
 #[derive(Bundle, Default, Reflect)]
 pub struct TextInputBundle {
-    text_style: TextInputTextStyle,
-    inactive: TextInputInactive,
-    cursor_timer: TextInputCursorTimer,
-    cursor_pos: TextInputCursorPos,
-    text_input: TextInput,
-    interaction: Interaction,
+    /// A component containing the text input's settings.
+    pub settings: TextInputSettings,
+    /// A component containing the [`TextStyle`] that will be used when creating the text input's inner [`TextBundle`].
+    pub text_style: TextInputTextStyle,
+    /// A component containing a value indicating whether the text input is active or not.
+    pub inactive: TextInputInactive,
+    /// A component that manages the cursor's blinking.
+    pub cursor_timer: TextInputCursorTimer,
+    /// A component containing the current text cursor position.
+    pub cursor_pos: TextInputCursorPos,
+    /// A component containing the current value of the text input.
+    pub value: TextInputValue,
+    /// This component's value is managed by Bevy's UI systems and enables tracking of hovers and presses.
+    pub interaction: Interaction,
 }
 
 impl TextInputBundle {
-    /// Creates a new [`TextInputBundle`] with the specified [`TextStyle`].
-    pub fn new(text_style: TextStyle) -> Self {
-        Self {
-            text_style: TextInputTextStyle(text_style),
-            ..default()
-        }
+    /// Returns this [`TextInputBundle`] with a new [`TextInputValue`] containing the provided `String`.
+    pub fn with_value(mut self, value: String) -> Self {
+        self.value = TextInputValue(value);
+        self
     }
 
-    /// Creates a new [`TextInputBundle`] with the specified [`TextStyle`] and starting text.
-    pub fn with_starting_text(text_style: TextStyle, starting_text: String) -> Self {
-        Self {
-            text_style: TextInputTextStyle(text_style),
-            text_input: TextInput(starting_text),
-            ..default()
-        }
+    /// Returns this [`TextInputBundle`] with a new [`TextInputTextStyle`] containing the provided `TextStyle`.
+    pub fn with_text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = TextInputTextStyle(text_style);
+        self
+    }
+
+    /// Returns this [`TextInputBundle`] with a new [`TextInputInactive`] containing the provided `bool`.
+    pub fn with_inactive(mut self, inactive: bool) -> Self {
+        self.inactive = TextInputInactive(inactive);
+        self
+    }
+
+    /// Returns this [`TextInputBundle`] with a new [`TextInputSettings`].
+    pub fn with_settings(mut self, settings: TextInputSettings) -> Self {
+        self.settings = settings;
+        self
     }
 }
 
@@ -88,7 +104,7 @@ impl TextInputBundle {
 #[derive(Component, Default, Reflect)]
 pub struct TextInputTextStyle(pub TextStyle);
 
-/// If true, the text input does not respond to keyboard events.
+/// If true, the text input does not respond to keyboard events and the cursor is hidden.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputInactive(pub bool);
 
@@ -109,9 +125,16 @@ impl Default for TextInputCursorTimer {
     }
 }
 
+/// A component containing the text input's settings.
+#[derive(Component, Default, Reflect)]
+pub struct TextInputSettings {
+    /// If true, text is not cleared after pressing enter.
+    pub retain_on_submit: bool,
+}
+
 /// A component containing the current value of the text input.
 #[derive(Component, Default, Reflect)]
-pub struct TextInput(pub String);
+pub struct TextInputValue(pub String);
 
 /// A component containing the current text cursor position.
 #[derive(Component, Default, Reflect)]
@@ -148,8 +171,9 @@ fn keyboard(
     mut events: EventReader<KeyboardInput>,
     mut text_input_query: Query<(
         Entity,
+        &TextInputSettings,
         &TextInputInactive,
-        &mut TextInput,
+        &mut TextInputValue,
         &mut TextInputCursorPos,
         &mut TextInputCursorTimer,
     )>,
@@ -159,7 +183,7 @@ fn keyboard(
         return;
     }
 
-    for (input_entity, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
+    for (input_entity, settings, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
         &mut text_input_query
     {
         if inactive.0 {
@@ -209,8 +233,12 @@ fn keyboard(
                     }
                 }
                 KeyCode::Enter => {
-                    submitted_value = Some(std::mem::take(&mut text_input.0));
-                    cursor_pos.0 = 0;
+                    if settings.retain_on_submit {
+                        submitted_value = Some(text_input.0.clone());
+                    } else {
+                        submitted_value = Some(std::mem::take(&mut text_input.0));
+                        cursor_pos.0 = 0;
+                    };
 
                     continue;
                 }
@@ -243,8 +271,8 @@ fn keyboard(
 
 fn update_value(
     mut input_query: Query<
-        (Entity, Ref<TextInput>, &mut TextInputCursorPos),
-        Or<(Changed<TextInput>, Changed<TextInputCursorPos>)>,
+        (Entity, Ref<TextInputValue>, &mut TextInputCursorPos),
+        Or<(Changed<TextInputValue>, Changed<TextInputCursorPos>)>,
     >,
     mut inner_text: InnerText,
 ) {
@@ -276,7 +304,15 @@ fn update_value(
 
 fn create(
     mut commands: Commands,
-    query: Query<(Entity, &TextInputTextStyle, &TextInput, &TextInputInactive), Added<TextInput>>,
+    query: Query<
+        (
+            Entity,
+            &TextInputTextStyle,
+            &TextInputValue,
+            &TextInputInactive,
+        ),
+        Added<TextInputValue>,
+    >,
 ) {
     for (entity, style, text_input, inactive) in &query {
         let text = commands
