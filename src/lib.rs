@@ -73,6 +73,33 @@ pub struct TextInputBundle {
     /// This component's value is managed by Bevy's UI systems and enables tracking of hovers and presses.
     pub interaction: Interaction,
 }
+
+impl TextInputBundle {
+    /// Returns this [`TextInputBundle`] with a new [`TextInputValue`] containing the provided `String`.
+    pub fn with_value(mut self, value: String) -> Self {
+        self.value = TextInputValue(value);
+        self
+    }
+
+    /// Returns this [`TextInputBundle`] with a new [`TextInputTextStyle`] containing the provided `TextStyle`.
+    pub fn with_text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = TextInputTextStyle(text_style);
+        self
+    }
+
+    /// Returns this [`TextInputBundle`] with a new [`TextInputInactive`] containing the provided `bool`.
+    pub fn with_inactive(mut self, inactive: bool) -> Self {
+        self.inactive = TextInputInactive(inactive);
+        self
+    }
+
+    /// Returns this [`TextInputBundle`] with a new [`TextInputSettings`].
+    pub fn with_settings(mut self, settings: TextInputSettings) -> Self {
+        self.settings = settings;
+        self
+    }
+}
+
 /// The [`TextStyle`] that will be used when creating the text input's inner [`TextBundle`].
 #[derive(Component, Default, Reflect)]
 pub struct TextInputTextStyle(pub TextStyle);

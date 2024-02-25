@@ -1,9 +1,7 @@
 //! An example showing a more advanced implementation with focus.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{
-    TextInputBundle, TextInputInactive, TextInputPlugin, TextInputTextStyle, TextInputValue,
-};
+use bevy_simple_text_input::{TextInputBundle, TextInputInactive, TextInputPlugin};
 
 const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.75, 0.52, 0.99);
 const BORDER_COLOR_INACTIVE: Color = Color::rgb(0.25, 0.25, 0.25);
@@ -51,16 +49,14 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle {
-                    text_style: TextInputTextStyle(TextStyle {
+                TextInputBundle::default()
+                    .with_text_style(TextStyle {
                         font_size: 40.,
                         color: TEXT_COLOR,
                         ..default()
-                    }),
-                    value: TextInputValue("Click Me".to_owned()),
-                    inactive: TextInputInactive(true),
-                    ..default()
-                },
+                    })
+                    .with_value("Click Me".to_owned())
+                    .with_inactive(true),
             ));
         });
 }
