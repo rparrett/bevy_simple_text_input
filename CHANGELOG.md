@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.0
+
+* Initialize cursor position properly when spawning by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/35>
+* Allow `&str` to be passed in `with_value` builder method by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/34>
+* Add a setting to control behavior when enter is pressed by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/33>
+* Make example colors consistent by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/30>
+* Allow text input value to changed programmatically by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/26>
+* Don't show cursor if input is spawned in an inactive state by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/29>
+* Reflect all the things by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/24>
+* Add cursor timer reset on input by @chompaa in <https://github.com/rparrett/bevy_simple_text_input/pull/20>
+* Add additional contributing guideline to README by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/22>
+* Fix names of private `blink_cursor` and `show_hide_cursor` systems being swapped by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/21>
+
 ## 0.4.0
 
 * Upgrade to Bevy 0.13 and prepare for Release by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/19>
