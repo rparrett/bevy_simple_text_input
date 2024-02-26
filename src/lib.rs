@@ -459,7 +459,7 @@ fn update_style(
     }
 }
 
-fn set_section_values(value: &str, cursor_pos: usize, sections: &mut Vec<TextSection>) {
+fn set_section_values(value: &str, cursor_pos: usize, sections: &mut [TextSection]) {
     let (before, after) = value.split_at(cursor_pos);
     sections[0].value = before.to_string();
     sections[2].value = after.to_string();
