@@ -57,7 +57,7 @@ fn setup(mut commands: Commands) {
                 },
                 TextInputBundle::default()
                     .with_text_style(text_style.clone())
-                    .with_value("1".to_owned())
+                    .with_value("1")
                     .with_settings(TextInputSettings {
                         retain_on_submit: true,
                     }),

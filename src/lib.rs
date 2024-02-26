@@ -76,8 +76,8 @@ pub struct TextInputBundle {
 
 impl TextInputBundle {
     /// Returns this [`TextInputBundle`] with a new [`TextInputValue`] containing the provided `String`.
-    pub fn with_value(mut self, value: String) -> Self {
-        self.value = TextInputValue(value);
+    pub fn with_value(mut self, value: impl Into<String>) -> Self {
+        self.value = TextInputValue(value.into());
         self
     }
 
