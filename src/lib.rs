@@ -76,8 +76,14 @@ pub struct TextInputBundle {
 
 impl TextInputBundle {
     /// Returns this [`TextInputBundle`] with a new [`TextInputValue`] containing the provided `String`.
+    ///
+    /// This also sets [`TextInputCursorPos`] so that the cursor position is at the end of the provided `String`.
     pub fn with_value(mut self, value: impl Into<String>) -> Self {
-        self.value = TextInputValue(value.into());
+        let owned = value.into();
+
+        self.cursor_pos = TextInputCursorPos(owned.len());
+        self.value = TextInputValue(owned);
+
         self
     }
 
@@ -289,16 +295,7 @@ fn update_value(
             cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.len());
         }
 
-        let (before, after) = text_input.0.split_at(cursor_pos.0);
-        text.sections[0].value = before.to_string();
-        text.sections[2].value = after.to_string();
-
-        // If the cursor is between two characters, use the zero-width cursor.
-        if cursor_pos.0 >= text_input.0.len() {
-            text.sections[1].value = "}".to_string();
-        } else {
-            text.sections[1].value = "|".to_string();
-        }
+        set_section_values(&text_input.0, cursor_pos.0, &mut text.sections);
     }
 }
 
@@ -309,42 +306,47 @@ fn create(
             Entity,
             &TextInputTextStyle,
             &TextInputValue,
+            &TextInputCursorPos,
             &TextInputInactive,
         ),
         Added<TextInputValue>,
     >,
 ) {
-    for (entity, style, text_input, inactive) in &query {
+    for (entity, style, text_input, cursor_pos, inactive) in &query {
+        let mut sections = vec![
+            // Pre-cursor
+            TextSection {
+                style: style.0.clone(),
+                ..default()
+            },
+            // cursor
+            TextSection {
+                style: TextStyle {
+                    font: CURSOR_HANDLE,
+                    color: if inactive.0 {
+                        Color::NONE
+                    } else {
+                        style.0.color
+                    },
+                    ..style.0.clone()
+                },
+                ..default()
+            },
+            // Post-cursor
+            TextSection {
+                style: style.0.clone(),
+                ..default()
+            },
+        ];
+
+        set_section_values(&text_input.0, cursor_pos.0, &mut sections);
+
         let text = commands
             .spawn((
                 TextBundle {
                     text: Text {
                         linebreak_behavior: BreakLineOn::NoWrap,
-                        sections: vec![
-                            // Pre-cursor
-                            TextSection {
-                                value: text_input.0.clone(),
-                                style: style.0.clone(),
-                            },
-                            // cursor
-                            TextSection {
-                                value: "}".to_string(),
-                                style: TextStyle {
-                                    font: CURSOR_HANDLE,
-                                    color: if inactive.0 {
-                                        Color::NONE
-                                    } else {
-                                        style.0.color
-                                    },
-                                    ..style.0.clone()
-                                },
-                            },
-                            // Post-cursor
-                            TextSection {
-                                value: "".to_string(),
-                                style: style.0.clone(),
-                            },
-                        ],
+                        sections,
                         ..default()
                     },
                     ..default()
@@ -454,5 +456,18 @@ fn update_style(
             ..style.0.clone()
         };
         text.sections[2].style = style.0.clone();
+    }
+}
+
+fn set_section_values(value: &str, cursor_pos: usize, sections: &mut [TextSection]) {
+    let (before, after) = value.split_at(cursor_pos);
+    sections[0].value = before.to_string();
+    sections[2].value = after.to_string();
+
+    // If the cursor is between two characters, use the zero-width cursor.
+    if cursor_pos >= value.len() {
+        sections[1].value = "}".to_string();
+    } else {
+        sections[1].value = "|".to_string();
     }
 }
