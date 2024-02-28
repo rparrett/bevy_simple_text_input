@@ -1,4 +1,26 @@
 //! A Bevy plugin the provides a simple single-line text input widget.
+//!
+//! # Examples
+//!
+//! See the [examples](https://github.com/rparrett/bevy_simple_text_input/tree/latest/examples) folder.
+//!
+//! ```
+//! use bevy::prelude::*;
+//! use bevy_simple_text_input::{TextInputBundle, TextInputPlugin};
+//!
+//! fn main() {
+//!     App::new()
+//!         .add_plugins(DefaultPlugins)
+//!         .add_plugins(TextInputPlugin)
+//!         .add_systems(Startup, setup)
+//!         .run();
+//! }
+//!
+//! fn setup(mut commands: Commands) {
+//!     commands.spawn(Camera2dBundle::default());
+//!     commands.spawn((NodeBundle::default(), TextInputBundle::default()));
+//! }
+//! ```
 
 use bevy::{
     asset::load_internal_binary_asset,
@@ -48,7 +70,8 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 ///
 /// Add this to a Bevy `NodeBundle`.
 ///
-/// Examples:
+/// # Example
+///
 /// ```rust
 /// # use bevy::prelude::*;
 /// use bevy_simple_text_input::TextInputBundle;
