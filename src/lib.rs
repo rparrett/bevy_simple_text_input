@@ -4,7 +4,7 @@
 //!
 //! See the [examples](https://github.com/rparrett/bevy_simple_text_input/tree/latest/examples) folder.
 //!
-//! ```
+//! ```no_run
 //! use bevy::prelude::*;
 //! use bevy_simple_text_input::{TextInputBundle, TextInputPlugin};
 //!
