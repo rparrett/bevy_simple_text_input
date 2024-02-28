@@ -8,7 +8,7 @@ use bevy::{
     text::BreakLineOn,
 };
 
-/// A `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
+/// A Bevy `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
 pub struct TextInputPlugin;
 
 impl Plugin for TextInputPlugin {
@@ -46,7 +46,7 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 
 /// A bundle providing the additional components required for a text input.
 ///
-/// Add this to a [`NodeBundle`].
+/// Add this to a Bevy `NodeBundle`.
 ///
 /// Examples:
 /// ```rust
@@ -60,7 +60,7 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 pub struct TextInputBundle {
     /// A component containing the text input's settings.
     pub settings: TextInputSettings,
-    /// A component containing the [`TextStyle`] that will be used when creating the text input's inner [`TextBundle`].
+    /// A component containing the Bevy `TextStyle` that will be used when creating the text input's inner Bevy `TextBundle`.
     pub text_style: TextInputTextStyle,
     /// A component containing a value indicating whether the text input is active or not.
     pub inactive: TextInputInactive,
@@ -87,7 +87,7 @@ impl TextInputBundle {
         self
     }
 
-    /// Returns this [`TextInputBundle`] with a new [`TextInputTextStyle`] containing the provided `TextStyle`.
+    /// Returns this [`TextInputBundle`] with a new [`TextInputTextStyle`] containing the provided Bevy `TextStyle`.
     pub fn with_text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = TextInputTextStyle(text_style);
         self
@@ -106,7 +106,7 @@ impl TextInputBundle {
     }
 }
 
-/// The [`TextStyle`] that will be used when creating the text input's inner [`TextBundle`].
+/// The Bevy `TextStyle` that will be used when creating the text input's inner Bevy `TextBundle`.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputTextStyle(pub TextStyle);
 
@@ -158,7 +158,7 @@ pub struct TextInputSubmitEvent {
     pub value: String,
 }
 
-/// A convenience parameter for dealing with a [`TextInput`]'s inner [`Text`] entity.
+/// A convenience parameter for dealing with a text input's inner Bevy `Text` entity.
 #[derive(SystemParam)]
 struct InnerText<'w, 's> {
     text_query: Query<'w, 's, &'static mut Text, With<TextInputInner>>,
@@ -372,7 +372,7 @@ fn create(
     }
 }
 
-// Shows or hides the cursor based on the text input's `inactive` property.
+// Shows or hides the cursor based on the text input's [`TextInputInactive`] property.
 fn show_hide_cursor(
     mut input_query: Query<
         (
