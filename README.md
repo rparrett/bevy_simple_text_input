@@ -27,7 +27,7 @@ See [`examples/basic.rs`](https://github.com/rparrett/bevy_simple_text_input/blo
 
 Please feel free to open a PR, but keep in mind this project's goals. This is meant to be a simple single-line text widget.
 
-The code should be simple enough for users to quickly understand and modify for their own purposes.
+The code should be simple enough for users to quickly understand and modify for their own purposes. There should be zero additional dependencies.
 
 Please keep PRs small and scoped to a single feature or fix.
 
