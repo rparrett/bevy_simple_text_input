@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.1
+
+* Prepare for release of 0.5.1 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/39>
+* Add note about dependencies by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/40>
+* Add an example for the main page of the docs by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/38>
+* Minor doc fixes by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/37>
+
 ## v0.5.0
 
 * Prepare for release by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/36>
