@@ -283,8 +283,8 @@ fn keyboard(
             }
 
             if let Key::Character(ref s) = event.logical_key {
-                let before = text_input.0.chars().take(cursor_pos.0).clone();
-                let after = text_input.0.chars().skip(cursor_pos.0).clone();
+                let before = text_input.0.chars().take(cursor_pos.0);
+                let after = text_input.0.chars().skip(cursor_pos.0);
                 text_input.0 = before.chain(s.chars()).chain(after).collect();
 
                 cursor_pos.0 += 1;
