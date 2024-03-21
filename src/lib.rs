@@ -248,10 +248,7 @@ fn keyboard(
                 KeyCode::Backspace => {
                     if pos > 0 {
                         cursor_pos.0 -= 1;
-
-                        let before = text_input.0.chars().take(cursor_pos.0).clone();
-                        let after = text_input.0.chars().skip(cursor_pos.0 + 1).clone();
-                        text_input.0 = before.chain(after).collect();
+                        text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
 
                         cursor_timer.should_reset = true;
                         continue;
@@ -259,9 +256,7 @@ fn keyboard(
                 }
                 KeyCode::Delete => {
                     if pos < text_input.0.len() {
-                        let before = text_input.0.chars().take(cursor_pos.0).clone();
-                        let after = text_input.0.chars().skip(cursor_pos.0 + 1).clone();
-                        text_input.0 = before.chain(after).collect();
+                        text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
 
                         cursor_timer.should_reset = true;
                         continue;
@@ -504,4 +499,12 @@ fn set_section_values(value: &str, cursor_pos: usize, sections: &mut [TextSectio
     } else {
         sections[1].value = "|".to_string();
     }
+}
+
+fn remove_char_at(input: &str, index: usize) -> String {
+    input
+        .chars()
+        .enumerate()
+        .filter_map(|(i, c)| if i != index { Some(c) } else { None })
+        .collect()
 }
