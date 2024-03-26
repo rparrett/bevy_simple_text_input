@@ -248,7 +248,7 @@ fn keyboard(
                 KeyCode::Backspace => {
                     if pos > 0 {
                         cursor_pos.0 -= 1;
-                        text_input.0.remove(cursor_pos.0);
+                        text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
 
                         cursor_timer.should_reset = true;
                         continue;
@@ -256,7 +256,8 @@ fn keyboard(
                 }
                 KeyCode::Delete => {
                     if pos < text_input.0.len() {
-                        text_input.0.remove(pos);
+                        text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
+
                         cursor_timer.should_reset = true;
                         continue;
                     }
@@ -282,7 +283,10 @@ fn keyboard(
             }
 
             if let Key::Character(ref s) = event.logical_key {
-                text_input.0.insert_str(cursor_pos.0, s);
+                let before = text_input.0.chars().take(cursor_pos.0);
+                let after = text_input.0.chars().skip(cursor_pos.0);
+                text_input.0 = before.chain(s.chars()).chain(after).collect();
+
                 cursor_pos.0 += 1;
 
                 cursor_timer.should_reset = true;
@@ -311,11 +315,11 @@ fn update_value(
         };
 
         if text_input.is_changed() && !cursor_pos.is_changed() {
-            cursor_pos.0 = text_input.0.len();
+            cursor_pos.0 = text_input.0.chars().count();
         }
 
         if cursor_pos.is_changed() {
-            cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.len());
+            cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.chars().count());
         }
 
         set_section_values(&text_input.0, cursor_pos.0, &mut text.sections);
@@ -483,14 +487,24 @@ fn update_style(
 }
 
 fn set_section_values(value: &str, cursor_pos: usize, sections: &mut [TextSection]) {
-    let (before, after) = value.split_at(cursor_pos);
-    sections[0].value = before.to_string();
-    sections[2].value = after.to_string();
+    let before = value.chars().take(cursor_pos).collect();
+    let after = value.chars().skip(cursor_pos).collect();
+
+    sections[0].value = before;
+    sections[2].value = after;
 
     // If the cursor is between two characters, use the zero-width cursor.
-    if cursor_pos >= value.len() {
+    if cursor_pos >= value.chars().count() {
         sections[1].value = "}".to_string();
     } else {
         sections[1].value = "|".to_string();
     }
+}
+
+fn remove_char_at(input: &str, index: usize) -> String {
+    input
+        .chars()
+        .enumerate()
+        .filter_map(|(i, c)| if i != index { Some(c) } else { None })
+        .collect()
 }
