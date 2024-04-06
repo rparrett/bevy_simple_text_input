@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.0
+
+* Prepare for release of 0.6.0 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/45>
+* Don't immediately panic on unicode input by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/42>
+
 ## v0.5.1
 
 * Prepare for release of 0.5.1 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/39>
