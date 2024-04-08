@@ -234,6 +234,7 @@ fn keyboard(
                 KeyCode::Delete => {
                     if pos < text_input.0.len() {
                         text_input.0.remove(pos);
+                        cursor_pos.0 -= 0;
                         cursor_timer.should_reset = true;
                         continue;
                     }
