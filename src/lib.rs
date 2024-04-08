@@ -257,7 +257,9 @@ fn keyboard(
                 KeyCode::Delete => {
                     if pos < text_input.0.len() {
                         text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
-                        cursor_pos.0 -= 0;
+
+                        // Ensure that the cursor isn't reset
+                        cursor_pos.set_changed();
 
                         cursor_timer.should_reset = true;
                         continue;
@@ -315,6 +317,8 @@ fn update_value(
             continue;
         };
 
+        // Reset the cursor to the end of the input when the value is changed by
+        // a user manipulating the value component.
         if text_input.is_changed() && !cursor_pos.is_changed() {
             cursor_pos.0 = text_input.0.chars().count();
         }
