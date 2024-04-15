@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.1
+
+* Fix cursor moving to the end when using the delete key by @tmacychen in <https://github.com/rparrett/bevy_simple_text_input/pull/47>
+
 ## v0.6.0
 
 * Prepare for release of 0.6.0 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/45>
