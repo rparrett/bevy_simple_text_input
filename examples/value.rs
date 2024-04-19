@@ -60,6 +60,7 @@ fn setup(mut commands: Commands) {
                     .with_value("1")
                     .with_settings(TextInputSettings {
                         retain_on_submit: true,
+                        ..default()
                     }),
             ));
 
