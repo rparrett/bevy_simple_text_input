@@ -34,7 +34,7 @@ fn setup(mut commands: Commands) {
             parent.spawn((
                 NodeBundle {
                     style: Style {
-                        width: Val::Px(200.0),
+                        width: Val::Px(325.0),
                         border: UiRect::all(Val::Px(5.0)),
                         padding: UiRect::all(Val::Px(5.0)),
                         ..default()
@@ -43,11 +43,13 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::default().with_text_style(TextStyle {
-                    font_size: 40.,
-                    color: TEXT_COLOR,
-                    ..default()
-                }),
+                TextInputBundle::default()
+                    .with_text_style(TextStyle {
+                        font_size: 40.,
+                        color: TEXT_COLOR,
+                        ..default()
+                    })
+                    .with_placeholder("Type something", None),
             ));
         });
 }

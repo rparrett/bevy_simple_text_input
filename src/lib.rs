@@ -53,6 +53,7 @@ impl Plugin for TextInputPlugin {
                     blink_cursor,
                     show_hide_cursor,
                     update_style,
+                    set_placeholder.after(create),
                 ),
             )
             .register_type::<TextInputSettings>()
@@ -93,6 +94,8 @@ pub struct TextInputBundle {
     pub cursor_pos: TextInputCursorPos,
     /// A component containing the current value of the text input.
     pub value: TextInputValue,
+    /// A component containing the placeholder text that is displayed when the text input is empty.
+    pub placeholder: TextInputPlaceholder,
     /// This component's value is managed by Bevy's UI systems and enables tracking of hovers and presses.
     pub interaction: Interaction,
 }
@@ -107,6 +110,19 @@ impl TextInputBundle {
         self.cursor_pos = TextInputCursorPos(owned.len());
         self.value = TextInputValue(owned);
 
+        self
+    }
+
+    /// Returns this [`TextInputBundle`] with a new [`TextInputPlaceholder`] containing the provided `String`.
+    pub fn with_placeholder(
+        mut self,
+        placeholder: impl Into<String>,
+        text_style: Option<TextStyle>,
+    ) -> Self {
+        self.placeholder = TextInputPlaceholder {
+            value: placeholder.into(),
+            text_style,
+        };
         self
     }
 
@@ -164,6 +180,36 @@ pub struct TextInputSettings {
 /// A component containing the current value of the text input.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputValue(pub String);
+
+/// A component containing the placeholder text that is displayed when the text input is empty.
+#[derive(Component, Default, Reflect)]
+pub struct TextInputPlaceholder {
+    /// The placeholder text.
+    pub value: String,
+    /// The style to use when rendering the placeholder text.
+    pub text_style: Option<TextStyle>,
+}
+
+impl TextInputPlaceholder {
+    /// Returns the style to use when rendering the placeholder text.
+    /// Uses the own style if it exists, otherwise uses the input style with half opacity.
+    pub fn get_style(&self, input_text_style: &TextStyle) -> TextStyle {
+        if let Some(style) = &self.text_style {
+            style.clone()
+        } else {
+            let color = input_text_style
+                .color
+                .with_a(input_text_style.color.a() * 0.25);
+            TextStyle {
+                color,
+                ..input_text_style.clone()
+            }
+        }
+    }
+}
+
+#[derive(Component, Reflect)]
+struct TextInputPlaceholderInner;
 
 /// A component containing the current text cursor position.
 #[derive(Component, Default, Reflect)]
@@ -469,6 +515,65 @@ fn blink_cursor(
             text.sections[1].style.color = Color::NONE;
         } else {
             text.sections[1].style.color = style.0.color;
+        }
+    }
+}
+
+fn set_placeholder(
+    mut commands: Commands,
+    q_text_changed: Query<
+        (
+            Entity,
+            &Children,
+            &TextInputValue,
+            &TextInputTextStyle,
+            &TextInputPlaceholder,
+        ),
+        Or<(Added<TextInputValue>, Changed<TextInputValue>)>,
+    >,
+    q_inner: Query<(Entity, &TextInputPlaceholderInner)>,
+) {
+    for (entity, children, text, style, placeholder) in &q_text_changed {
+        let mut placeholder_inner = children
+            .iter()
+            .filter_map(|child| q_inner.get(*child).ok())
+            .peekable();
+
+        if text.0.is_empty() {
+            if placeholder_inner.peek().is_some() {
+                continue;
+            }
+
+            let placeholder_text = commands
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            overflow: Overflow::clip(),
+                            justify_content: JustifyContent::FlexStart,
+                            max_width: Val::Percent(100.),
+                            position_type: PositionType::Absolute,
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    TextInputPlaceholderInner,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(
+                        TextBundle::from_section(
+                            placeholder.value.clone(),
+                            placeholder.get_style(&style.0),
+                        )
+                        .with_no_wrap(),
+                    );
+                })
+                .id();
+
+            commands.entity(entity).add_child(placeholder_text);
+        } else {
+            placeholder_inner.for_each(|(entity, _)| {
+                commands.entity(entity).despawn_recursive();
+            });
         }
     }
 }
