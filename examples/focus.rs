@@ -55,7 +55,7 @@ fn setup(mut commands: Commands) {
                         color: TEXT_COLOR,
                         ..default()
                     })
-                    .with_value("Click Me")
+                    .with_placeholder("Click Me", None)
                     .with_inactive(true),
             ));
         });

@@ -43,13 +43,11 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::default()
-                    .with_text_style(TextStyle {
-                        font_size: 40.,
-                        color: TEXT_COLOR,
-                        ..default()
-                    })
-                    .with_placeholder("Type something", None),
+                TextInputBundle::default().with_text_style(TextStyle {
+                    font_size: 40.,
+                    color: TEXT_COLOR,
+                    ..default()
+                }),
             ));
         });
 }

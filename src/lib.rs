@@ -53,7 +53,7 @@ impl Plugin for TextInputPlugin {
                     blink_cursor,
                     show_hide_cursor,
                     update_style,
-                    set_placeholder.after(create),
+                    show_hide_placeholder.after(create),
                 ),
             )
             .register_type::<TextInputSettings>()
@@ -386,11 +386,12 @@ fn create(
             &TextInputValue,
             &TextInputCursorPos,
             &TextInputInactive,
+            &TextInputPlaceholder,
         ),
         Added<TextInputValue>,
     >,
 ) {
-    for (entity, style, text_input, cursor_pos, inactive) in &query {
+    for (entity, style, text_input, cursor_pos, inactive, placeholder) in &query {
         let mut sections = vec![
             // Pre-cursor
             TextSection {
@@ -433,6 +434,28 @@ fn create(
             ))
             .id();
 
+        let placeholder_text = commands
+            .spawn((
+                TextBundle {
+                    text: Text {
+                        linebreak_behavior: BreakLineOn::NoWrap,
+                        sections: vec![TextSection {
+                            value: placeholder.value.clone(),
+                            style: placeholder.get_style(&style.0),
+                        }],
+                        ..default()
+                    },
+                    visibility: Visibility::Hidden,
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        ..default()
+                    },
+                    ..default()
+                },
+                TextInputPlaceholderInner,
+            ))
+            .id();
+
         let overflow_container = commands
             .spawn(NodeBundle {
                 style: Style {
@@ -446,7 +469,9 @@ fn create(
             .id();
 
         commands.entity(overflow_container).add_child(text);
-        commands.entity(entity).add_child(overflow_container);
+        commands
+            .entity(entity)
+            .push_children(&[overflow_container, placeholder_text]);
     }
 }
 
@@ -519,60 +544,20 @@ fn blink_cursor(
     }
 }
 
-fn set_placeholder(
-    mut commands: Commands,
-    q_text_changed: Query<
-        (
-            Entity,
-            &Children,
-            &TextInputValue,
-            &TextInputTextStyle,
-            &TextInputPlaceholder,
-        ),
-        Or<(Added<TextInputValue>, Changed<TextInputValue>)>,
+fn show_hide_placeholder(
+    input_query: Query<
+        (&Children, &TextInputValue, &TextInputInactive),
+        Or<(Changed<TextInputValue>, Changed<TextInputInactive>)>,
     >,
-    q_inner: Query<(Entity, &TextInputPlaceholderInner)>,
+    mut vis_query: Query<&mut Visibility, With<TextInputPlaceholderInner>>,
 ) {
-    for (entity, children, text, style, placeholder) in &q_text_changed {
-        let mut placeholder_inner = children
-            .iter()
-            .filter_map(|child| q_inner.get(*child).ok())
-            .peekable();
-
-        if text.0.is_empty() {
-            if placeholder_inner.peek().is_some() {
-                continue;
-            }
-
-            let placeholder_text = commands
-                .spawn((
-                    NodeBundle {
-                        style: Style {
-                            overflow: Overflow::clip(),
-                            justify_content: JustifyContent::FlexStart,
-                            max_width: Val::Percent(100.),
-                            position_type: PositionType::Absolute,
-                            ..default()
-                        },
-                        ..default()
-                    },
-                    TextInputPlaceholderInner,
-                ))
-                .with_children(|parent| {
-                    parent.spawn(
-                        TextBundle::from_section(
-                            placeholder.value.clone(),
-                            placeholder.get_style(&style.0),
-                        )
-                        .with_no_wrap(),
-                    );
-                })
-                .id();
-
-            commands.entity(entity).add_child(placeholder_text);
-        } else {
-            placeholder_inner.for_each(|(entity, _)| {
-                commands.entity(entity).despawn_recursive();
+    for (children, text, inactive) in &input_query {
+        let mut iter = vis_query.iter_many_mut(children);
+        while let Some(mut inner_vis) = iter.fetch_next() {
+            inner_vis.set_if_neq(if text.0.is_empty() && inactive.0 {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
             });
         }
     }
