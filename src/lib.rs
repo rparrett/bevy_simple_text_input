@@ -181,7 +181,7 @@ pub struct TextInputSettings {
 #[derive(Component, Default, Reflect)]
 pub struct TextInputValue(pub String);
 
-/// A component containing the placeholder text that is displayed when the text input is empty.
+/// A component containing the placeholder text that is displayed when the text input is empty and not focused.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputPlaceholder {
     /// The placeholder text.
