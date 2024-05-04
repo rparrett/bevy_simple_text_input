@@ -192,7 +192,7 @@ pub struct TextInputPlaceholder {
 
 impl TextInputPlaceholder {
     /// Returns the style to use when rendering the placeholder text.
-    /// Uses the own style if it exists, otherwise uses the input style with half opacity.
+    /// Uses the own style if it exists, otherwise uses the input style with quarter opacity.
     pub fn get_style(&self, input_text_style: &TextStyle) -> TextStyle {
         if let Some(style) = &self.text_style {
             style.clone()
