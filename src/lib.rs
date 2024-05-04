@@ -94,7 +94,7 @@ pub struct TextInputBundle {
     pub cursor_pos: TextInputCursorPos,
     /// A component containing the current value of the text input.
     pub value: TextInputValue,
-    /// A component containing the placeholder text that is displayed when the text input is empty.
+    /// A component containing the placeholder text that is displayed when the text input is empty and not focused.
     pub placeholder: TextInputPlaceholder,
     /// This component's value is managed by Bevy's UI systems and enables tracking of hovers and presses.
     pub interaction: Interaction,
