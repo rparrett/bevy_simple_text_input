@@ -34,7 +34,7 @@ fn setup(mut commands: Commands) {
             parent.spawn((
                 NodeBundle {
                     style: Style {
-                        width: Val::Px(325.0),
+                        width: Val::Px(200.0),
                         border: UiRect::all(Val::Px(5.0)),
                         padding: UiRect::all(Val::Px(5.0)),
                         ..default()
