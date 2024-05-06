@@ -548,7 +548,7 @@ fn show_hide_placeholder(
         let mut iter = vis_query.iter_many_mut(children);
         while let Some(mut inner_vis) = iter.fetch_next() {
             inner_vis.set_if_neq(if text.0.is_empty() && inactive.0 {
-                Visibility::Visible
+                Visibility::Inherited
             } else {
                 Visibility::Hidden
             });
