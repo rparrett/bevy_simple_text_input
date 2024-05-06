@@ -53,6 +53,7 @@ impl Plugin for TextInputPlugin {
                     blink_cursor,
                     show_hide_cursor,
                     update_style,
+                    show_hide_placeholder,
                 ),
             )
             .register_type::<TextInputSettings>()
@@ -93,6 +94,8 @@ pub struct TextInputBundle {
     pub cursor_pos: TextInputCursorPos,
     /// A component containing the current value of the text input.
     pub value: TextInputValue,
+    /// A component containing the placeholder text that is displayed when the text input is empty and not focused.
+    pub placeholder: TextInputPlaceholder,
     /// This component's value is managed by Bevy's UI systems and enables tracking of hovers and presses.
     pub interaction: Interaction,
 }
@@ -107,6 +110,19 @@ impl TextInputBundle {
         self.cursor_pos = TextInputCursorPos(owned.len());
         self.value = TextInputValue(owned);
 
+        self
+    }
+
+    /// Returns this [`TextInputBundle`] with a new [`TextInputPlaceholder`] containing the provided `String`.
+    pub fn with_placeholder(
+        mut self,
+        placeholder: impl Into<String>,
+        text_style: Option<TextStyle>,
+    ) -> Self {
+        self.placeholder = TextInputPlaceholder {
+            value: placeholder.into(),
+            text_style,
+        };
         self
     }
 
@@ -166,6 +182,20 @@ pub struct TextInputSettings {
 /// A component containing the current value of the text input.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputValue(pub String);
+
+/// A component containing the placeholder text that is displayed when the text input is empty and not focused.
+#[derive(Component, Default, Reflect)]
+pub struct TextInputPlaceholder {
+    /// The placeholder text.
+    pub value: String,
+    /// The style to use when rendering the placeholder text.
+    ///
+    /// If `None`, the text input style will be used with alpha value of `0.25`.
+    pub text_style: Option<TextStyle>,
+}
+
+#[derive(Component, Reflect)]
+struct TextInputPlaceholderInner;
 
 /// A component containing the current text cursor position.
 #[derive(Component, Default, Reflect)]
@@ -352,11 +382,12 @@ fn create(
             &TextInputCursorPos,
             &TextInputInactive,
             &TextInputSettings,
+            &TextInputPlaceholder,
         ),
         Added<TextInputValue>,
     >,
 ) {
-    for (entity, style, text_input, cursor_pos, inactive, settings) in &query {
+    for (entity, style, text_input, cursor_pos, inactive, settings, placeholder) in &query {
         let mut sections = vec![
             // Pre-cursor
             TextSection {
@@ -403,6 +434,39 @@ fn create(
             ))
             .id();
 
+        let placeholder_style = placeholder
+            .text_style
+            .clone()
+            .unwrap_or_else(|| placeholder_style(&style.0));
+
+        let placeholder_visible = inactive.0 && text_input.0.is_empty();
+
+        let placeholder_text = commands
+            .spawn((
+                TextBundle {
+                    text: Text {
+                        linebreak_behavior: BreakLineOn::NoWrap,
+                        sections: vec![TextSection {
+                            value: placeholder.value.clone(),
+                            style: placeholder_style,
+                        }],
+                        ..default()
+                    },
+                    visibility: if placeholder_visible {
+                        Visibility::Inherited
+                    } else {
+                        Visibility::Hidden
+                    },
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        ..default()
+                    },
+                    ..default()
+                },
+                TextInputPlaceholderInner,
+            ))
+            .id();
+
         let overflow_container = commands
             .spawn(NodeBundle {
                 style: Style {
@@ -416,7 +480,9 @@ fn create(
             .id();
 
         commands.entity(overflow_container).add_child(text);
-        commands.entity(entity).add_child(overflow_container);
+        commands
+            .entity(entity)
+            .push_children(&[overflow_container, placeholder_text]);
     }
 }
 
@@ -489,6 +555,25 @@ fn blink_cursor(
     }
 }
 
+fn show_hide_placeholder(
+    input_query: Query<
+        (&Children, &TextInputValue, &TextInputInactive),
+        Or<(Changed<TextInputValue>, Changed<TextInputInactive>)>,
+    >,
+    mut vis_query: Query<&mut Visibility, With<TextInputPlaceholderInner>>,
+) {
+    for (children, text, inactive) in &input_query {
+        let mut iter = vis_query.iter_many_mut(children);
+        while let Some(mut inner_vis) = iter.fetch_next() {
+            inner_vis.set_if_neq(if text.0.is_empty() && inactive.0 {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            });
+        }
+    }
+}
+
 fn update_style(
     mut input_query: Query<(Entity, &TextInputTextStyle), Changed<TextInputTextStyle>>,
     mut inner_text: InnerText,
@@ -535,4 +620,12 @@ fn masked_value(value: &str, settings: &TextInputSettings) -> String {
         || value.to_string(),
         |c| value.chars().map(|_| c).collect::<String>(),
     )
+}
+
+fn placeholder_style(style: &TextStyle) -> TextStyle {
+    let color = style.color.with_a(style.color.a() * 0.25);
+    TextStyle {
+        color,
+        ..style.clone()
+    }
 }
