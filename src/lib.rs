@@ -187,6 +187,8 @@ pub struct TextInputPlaceholder {
     /// The placeholder text.
     pub value: String,
     /// The style to use when rendering the placeholder text.
+    ///
+    /// If `None`, the text input style will be used with alpha value of `0.25`.
     pub text_style: Option<TextStyle>,
 }
 
