@@ -53,7 +53,7 @@ impl Plugin for TextInputPlugin {
                     blink_cursor,
                     show_hide_cursor,
                     update_style,
-                    show_hide_placeholder.after(create),
+                    show_hide_placeholder,
                 ),
             )
             .register_type::<TextInputSettings>()
@@ -188,24 +188,6 @@ pub struct TextInputPlaceholder {
     pub value: String,
     /// The style to use when rendering the placeholder text.
     pub text_style: Option<TextStyle>,
-}
-
-impl TextInputPlaceholder {
-    /// Returns the style to use when rendering the placeholder text.
-    /// Uses the own style if it exists, otherwise uses the input style with quarter opacity.
-    pub fn get_style(&self, input_text_style: &TextStyle) -> TextStyle {
-        if let Some(style) = &self.text_style {
-            style.clone()
-        } else {
-            let color = input_text_style
-                .color
-                .with_a(input_text_style.color.a() * 0.25);
-            TextStyle {
-                color,
-                ..input_text_style.clone()
-            }
-        }
-    }
 }
 
 #[derive(Component, Reflect)]
@@ -434,6 +416,13 @@ fn create(
             ))
             .id();
 
+        let placeholder_style = placeholder
+            .text_style
+            .clone()
+            .unwrap_or_else(|| placeholder_style(&style.0));
+
+        let placeholder_visible = inactive.0 && text_input.0.is_empty();
+
         let placeholder_text = commands
             .spawn((
                 TextBundle {
@@ -441,11 +430,15 @@ fn create(
                         linebreak_behavior: BreakLineOn::NoWrap,
                         sections: vec![TextSection {
                             value: placeholder.value.clone(),
-                            style: placeholder.get_style(&style.0),
+                            style: placeholder_style,
                         }],
                         ..default()
                     },
-                    visibility: Visibility::Hidden,
+                    visibility: if placeholder_visible {
+                        Visibility::Inherited
+                    } else {
+                        Visibility::Hidden
+                    },
                     style: Style {
                         position_type: PositionType::Absolute,
                         ..default()
@@ -602,4 +595,12 @@ fn remove_char_at(input: &str, index: usize) -> String {
         .enumerate()
         .filter_map(|(i, c)| if i != index { Some(c) } else { None })
         .collect()
+}
+
+fn placeholder_style(style: &TextStyle) -> TextStyle {
+    let color = style.color.with_a(style.color.a() * 0.25);
+    TextStyle {
+        color,
+        ..style.clone()
+    }
 }
