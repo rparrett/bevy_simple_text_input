@@ -1,4 +1,4 @@
-//! An example showing a very basic implementation.
+//! An example showing a text input that is updated by a button.
 
 use bevy::prelude::*;
 use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSettings, TextInputValue};
