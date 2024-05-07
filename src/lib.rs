@@ -365,7 +365,7 @@ fn update_value(
         }
 
         set_section_values(
-            &masked_value(&text_input.0, settings),
+            &masked_value(&text_input.0, settings.mask_character),
             cursor_pos.0,
             &mut text.sections,
         );
@@ -415,7 +415,7 @@ fn create(
         ];
 
         set_section_values(
-            &masked_value(&text_input.0, settings),
+            &masked_value(&text_input.0, settings.mask_character),
             cursor_pos.0,
             &mut sections,
         );
@@ -615,8 +615,8 @@ fn remove_char_at(input: &str, index: usize) -> String {
         .collect()
 }
 
-fn masked_value(value: &str, settings: &TextInputSettings) -> String {
-    settings.mask_character.map_or_else(
+fn masked_value(value: &str, mask: Option<char>) -> String {
+    mask.map_or_else(
         || value.to_string(),
         |c| value.chars().map(|_| c).collect::<String>(),
     )
