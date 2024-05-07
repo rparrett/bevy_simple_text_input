@@ -175,6 +175,8 @@ impl Default for TextInputCursorTimer {
 pub struct TextInputSettings {
     /// If true, text is not cleared after pressing enter.
     pub retain_on_submit: bool,
+    /// Mask text with the provided character.
+    pub mask_character: Option<char>,
 }
 
 /// A component containing the current value of the text input.
@@ -337,12 +339,17 @@ fn keyboard(
 
 fn update_value(
     mut input_query: Query<
-        (Entity, Ref<TextInputValue>, &mut TextInputCursorPos),
+        (
+            Entity,
+            Ref<TextInputValue>,
+            &TextInputSettings,
+            &mut TextInputCursorPos,
+        ),
         Or<(Changed<TextInputValue>, Changed<TextInputCursorPos>)>,
     >,
     mut inner_text: InnerText,
 ) {
-    for (entity, text_input, mut cursor_pos) in &mut input_query {
+    for (entity, text_input, settings, mut cursor_pos) in &mut input_query {
         let Some(mut text) = inner_text.get_mut(entity) else {
             continue;
         };
@@ -357,7 +364,11 @@ fn update_value(
             cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.chars().count());
         }
 
-        set_section_values(&text_input.0, cursor_pos.0, &mut text.sections);
+        set_section_values(
+            &masked_value(&text_input.0, settings.mask_character),
+            cursor_pos.0,
+            &mut text.sections,
+        );
     }
 }
 
@@ -370,12 +381,13 @@ fn create(
             &TextInputValue,
             &TextInputCursorPos,
             &TextInputInactive,
+            &TextInputSettings,
             &TextInputPlaceholder,
         ),
         Added<TextInputValue>,
     >,
 ) {
-    for (entity, style, text_input, cursor_pos, inactive, placeholder) in &query {
+    for (entity, style, text_input, cursor_pos, inactive, settings, placeholder) in &query {
         let mut sections = vec![
             // Pre-cursor
             TextSection {
@@ -402,7 +414,11 @@ fn create(
             },
         ];
 
-        set_section_values(&text_input.0, cursor_pos.0, &mut sections);
+        set_section_values(
+            &masked_value(&text_input.0, settings.mask_character),
+            cursor_pos.0,
+            &mut sections,
+        );
 
         let text = commands
             .spawn((
@@ -597,6 +613,13 @@ fn remove_char_at(input: &str, index: usize) -> String {
         .enumerate()
         .filter_map(|(i, c)| if i != index { Some(c) } else { None })
         .collect()
+}
+
+fn masked_value(value: &str, mask: Option<char>) -> String {
+    mask.map_or_else(
+        || value.to_string(),
+        |c| value.chars().map(|_| c).collect::<String>(),
+    )
 }
 
 fn placeholder_style(style: &TextStyle) -> TextStyle {
