@@ -1,24 +1,27 @@
 # Changelog
 
+## v0.7.0
+
+* feat: add placeholder text by @Xenira in <https://github.com/rparrett/bevy_simple_text_input/pull/51>
+* feat: add character masking by @Xenira in <https://github.com/rparrett/bevy_simple_text_input/pull/50>
+* Fix value example's top level comment by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/52>
+
 ## v0.6.1
 
 * Fix cursor moving to the end when using the delete key by @tmacychen in <https://github.com/rparrett/bevy_simple_text_input/pull/47>
 
 ## v0.6.0
 
-* Prepare for release of 0.6.0 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/45>
 * Don't immediately panic on unicode input by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/42>
 
 ## v0.5.1
 
-* Prepare for release of 0.5.1 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/39>
 * Add note about dependencies by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/40>
 * Add an example for the main page of the docs by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/38>
 * Minor doc fixes by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/37>
 
 ## v0.5.0
 
-* Prepare for release by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/36>
 * Initialize cursor position properly when spawning by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/35>
 * Allow `&str` to be passed in `with_value` builder method by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/34>
 * Add a setting to control behavior when enter is pressed by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/33>
