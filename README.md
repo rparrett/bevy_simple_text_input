@@ -19,7 +19,7 @@ See [`examples/basic.rs`](https://github.com/rparrett/bevy_simple_text_input/blo
 
 | `bevy_simple_text_input` | `bevy` |
 | :--                      | :--    |
-| `0.4`-`0.6`              | `0.13` |
+| `0.4`-`0.7`              | `0.13` |
 | `0.3`                    | `0.12` |
 | `0.1`-`0.2`              | `0.11` |
 
@@ -27,7 +27,7 @@ See [`examples/basic.rs`](https://github.com/rparrett/bevy_simple_text_input/blo
 
 Please feel free to open a PR, but keep in mind this project's goals. This is meant to be a simple single-line text widget.
 
-The code should be simple enough for users to quickly understand and modify for their own purposes. There should be zero additional dependencies.
+The code should be simple enough for users to quickly understand and modify for their own purposes. There should be zero additional dependencies on other Bevy ecosystem crates.
 
 Please keep PRs small and scoped to a single feature or fix.
 
