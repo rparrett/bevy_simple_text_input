@@ -1,7 +1,9 @@
 //! An example showing a very basic implementation.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSubmitEvent};
+use bevy_simple_text_input::{
+    TextInputBundle, TextInputPlugin, TextInputSubmitEvent, TextInputSystem,
+};
 
 const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.75, 0.52, 0.99);
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
@@ -12,7 +14,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(TextInputPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, listener)
+        .add_systems(Update, listener.after(TextInputSystem))
         .run();
 }
 

@@ -33,6 +33,10 @@ use bevy::{
 /// A Bevy `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
 pub struct TextInputPlugin;
 
+/// Label for systems that update text inputs.
+#[derive(Debug, PartialEq, Eq, Clone, Hash, SystemSet)]
+pub struct TextInputSystem;
+
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut App) {
         // This is a special font with a zero-width `|` glyph.
@@ -54,7 +58,8 @@ impl Plugin for TextInputPlugin {
                     show_hide_cursor,
                     update_style,
                     show_hide_placeholder,
-                ),
+                )
+                    .in_set(TextInputSystem),
             )
             .register_type::<TextInputSettings>()
             .register_type::<TextInputTextStyle>()
