@@ -1,7 +1,9 @@
 //! An example showing a more advanced implementation with focus.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInputBundle, TextInputInactive, TextInputPlugin};
+use bevy_simple_text_input::{
+    TextInputBundle, TextInputInactive, TextInputPlugin, TextInputSystem,
+};
 
 const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.75, 0.52, 0.99);
 const BORDER_COLOR_INACTIVE: Color = Color::rgb(0.25, 0.25, 0.25);
@@ -13,7 +15,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(TextInputPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, focus)
+        .add_systems(Update, focus.before(TextInputSystem))
         .run();
 }
 
