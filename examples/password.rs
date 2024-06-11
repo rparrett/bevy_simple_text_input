@@ -3,9 +3,9 @@
 use bevy::prelude::*;
 use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSettings};
 
-const BORDER_COLOR_ACTIVE: Color = Color::rgb(0.75, 0.52, 0.99);
-const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
-const BACKGROUND_COLOR: Color = Color::rgb(0.15, 0.15, 0.15);
+const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
+const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
+const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
 
 fn main() {
     App::new()

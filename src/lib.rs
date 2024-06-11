@@ -628,7 +628,7 @@ fn masked_value(value: &str, mask: Option<char>) -> String {
 }
 
 fn placeholder_style(style: &TextStyle) -> TextStyle {
-    let color = style.color.with_a(style.color.a() * 0.25);
+    let color = style.color.with_alpha(style.color.alpha() * 0.25);
     TextStyle {
         color,
         ..style.clone()
