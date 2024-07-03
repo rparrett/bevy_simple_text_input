@@ -75,7 +75,7 @@ fn setup(mut commands: Commands) {
                             ..default()
                         },
                         border_color: BorderColor(BORDER_COLOR_INACTIVE),
-                        image: UiImage::default().with_color(BACKGROUND_COLOR),
+                        background_color: BACKGROUND_COLOR.into(),
                         ..default()
                     },
                     IncValueButton,
