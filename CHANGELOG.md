@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.0
+
+* Define `TextInputSystem` system set by @andrewhickman in <https://github.com/rparrett/bevy_simple_text_input/pull/56>
+* Upgrade to Bevy 0.14 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/55>
+
 ## v0.7.0
 
 * feat: add placeholder text by @Xenira in <https://github.com/rparrett/bevy_simple_text_input/pull/51>
