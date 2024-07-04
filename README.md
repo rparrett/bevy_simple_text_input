@@ -19,6 +19,7 @@ See [`examples/basic.rs`](https://github.com/rparrett/bevy_simple_text_input/blo
 
 | `bevy_simple_text_input` | `bevy` |
 | :--                      | :--    |
+| `0.8`                    | `0.14` |
 | `0.4`-`0.7`              | `0.13` |
 | `0.3`                    | `0.12` |
 | `0.1`-`0.2`              | `0.11` |
