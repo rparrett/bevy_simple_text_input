@@ -237,7 +237,7 @@ impl<'w, 's> InnerText<'w, 's> {
 }
 
 fn keyboard(
-    mut events: EventReader<KeyboardInput>,
+    mut input_reader: EventReader<KeyboardInput>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
@@ -248,9 +248,11 @@ fn keyboard(
     )>,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
-    if events.is_empty() {
+    if input_reader.is_empty() {
         return;
     }
+
+    let inputs: Vec<_> = input_reader.read().collect();
 
     for (input_entity, settings, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
         &mut text_input_query
@@ -261,14 +263,14 @@ fn keyboard(
 
         let mut submitted_value = None;
 
-        for event in events.read() {
-            if !event.state.is_pressed() {
+        for input in &inputs {
+            if !input.state.is_pressed() {
                 continue;
             };
 
             let pos = cursor_pos.bypass_change_detection().0;
 
-            match event.key_code {
+            match input.key_code {
                 KeyCode::ArrowLeft => {
                     if pos > 0 {
                         cursor_pos.0 -= 1;
@@ -325,7 +327,7 @@ fn keyboard(
                 _ => {}
             }
 
-            if let Key::Character(ref s) = event.logical_key {
+            if let Key::Character(ref s) = input.logical_key {
                 let before = text_input.0.chars().take(cursor_pos.0);
                 let after = text_input.0.chars().skip(cursor_pos.0);
                 text_input.0 = before.chain(s.chars()).chain(after).collect();
