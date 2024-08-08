@@ -27,7 +27,7 @@ use bevy::{
     ecs::system::SystemParam,
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
-    text::BreakLineOn,
+    text::{BreakLineOn, TextLayoutInfo},
 };
 
 /// A Bevy `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
@@ -58,6 +58,7 @@ impl Plugin for TextInputPlugin {
                     show_hide_cursor,
                     update_style,
                     show_hide_placeholder,
+                    scroll_with_cursor,
                 )
                     .in_set(TextInputSystem),
             )
@@ -374,6 +375,59 @@ fn update_value(
             cursor_pos.0,
             &mut text.sections,
         );
+    }
+}
+
+fn scroll_with_cursor(
+    mut texts: Query<
+        (&TextLayoutInfo, &mut Style, &Node, &Parent),
+        (With<TextInputInner>, Changed<TextLayoutInfo>),
+    >,
+    mut parents: Query<(&Node, &mut Style), Without<TextInputInner>>,
+) {
+    for (layout, mut style, child_node, parent) in texts.iter_mut() {
+        let Ok((parent_node, mut parent_style)) = parents.get_mut(parent.get()) else {
+            continue;
+        };
+
+        match layout.glyphs.last().map(|g| g.section_index) {
+            // no text -> do nothing
+            None => return,
+            // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame to move into view
+            Some(1) => {
+                style.left = Val::Auto;
+                parent_style.justify_content = JustifyContent::FlexEnd;
+                return;
+            }
+            _ => (),
+        }
+
+        // if cursor is in the middle, we use FlexStart + `left` px for consistent behaviour when typing the middle
+        let child_size = child_node.size().x;
+        let parent_size = parent_node.size().x;
+
+        let Some(cursor_pos) = layout
+            .glyphs
+            .iter()
+            .find(|g| g.section_index == 1)
+            .map(|p| p.position.x)
+        else {
+            continue;
+        };
+
+        let box_pos = match style.left {
+            Val::Px(px) => -px,
+            _ => child_size - parent_size,
+        };
+
+        let relative_pos = cursor_pos - box_pos;
+
+        if relative_pos < 0.0 || relative_pos > parent_size {
+            let req_px = parent_size * 0.5 - cursor_pos;
+            let req_px = req_px.clamp(parent_size - child_size, 0.0);
+            style.left = Val::Px(req_px);
+            parent_style.justify_content = JustifyContent::FlexStart;
+        }
     }
 }
 
