@@ -24,7 +24,7 @@
 
 use bevy::{
     asset::load_internal_binary_asset,
-    ecs::system::SystemParam,
+    ecs::{event::ManualEventReader, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     render::camera::RenderTarget,
@@ -324,7 +324,8 @@ impl<'w, 's> InnerText<'w, 's> {
 
 fn keyboard(
     key_input: Res<ButtonInput<KeyCode>>,
-    mut events: EventReader<KeyboardInput>,
+    input_events: Res<Events<KeyboardInput>>,
+    input_reader: Local<ManualEventReader<KeyboardInput>>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
@@ -336,7 +337,7 @@ fn keyboard(
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
     navigation: Res<TextInputNavigationBindings>,
 ) {
-    if events.is_empty() {
+    if input_reader.clone().read(&input_events).next().is_none() {
         return;
     }
 
@@ -387,14 +388,46 @@ fn keyboard(
             }
         }
 
-        for event in events.read() {
-            if !event.state.is_pressed() {
+        for (action, chord) in navigation.0.iter() {
+            if chord.iter().all(|key| key_input.pressed(*key))
+                && chord.iter().any(|key| key_input.just_pressed(*key))
+            {
+                match action {
+                    TextInputAction::LineStart => cursor_pos.0 = 0,
+                    TextInputAction::LineEnd => cursor_pos.0 = text_input.0.len(),
+                    TextInputAction::WordLeft => {
+                        cursor_pos.0 = text_input
+                            .0
+                            .char_indices()
+                            .rev()
+                            .skip(text_input.0.len() - cursor_pos.0 + 1)
+                            .find(|c| c.1.is_ascii_whitespace())
+                            .map(|(ix, _)| ix + 1)
+                            .unwrap_or(0)
+                    }
+                    TextInputAction::WordRight => {
+                        cursor_pos.0 = text_input
+                            .0
+                            .char_indices()
+                            .skip(cursor_pos.0)
+                            .find(|c| c.1.is_ascii_whitespace())
+                            .map(|(ix, _)| ix + 1)
+                            .unwrap_or(text_input.0.len())
+                    }
+                };
+                cursor_timer.should_reset = true;
+                continue 'text_input;
+            }
+        }
+
+        for input in input_reader.clone().read(&input_events) {
+            if !input.state.is_pressed() {
                 continue;
             };
 
             let pos = cursor_pos.bypass_change_detection().0;
 
-            match event.key_code {
+            match input.key_code {
                 KeyCode::ArrowLeft => {
                     if pos > 0 {
                         cursor_pos.0 -= 1;
@@ -451,7 +484,7 @@ fn keyboard(
                 _ => {}
             }
 
-            if let Key::Character(ref s) = event.logical_key {
+            if let Key::Character(ref s) = input.logical_key {
                 let before = text_input.0.chars().take(cursor_pos.0);
                 let after = text_input.0.chars().skip(cursor_pos.0);
                 text_input.0 = before.chain(s.chars()).chain(after).collect();
@@ -507,7 +540,7 @@ fn update_value(
 }
 
 fn scroll_with_cursor(
-    mut texts: Query<
+    mut inner_text_query: Query<
         (
             &TextLayoutInfo,
             &mut Style,
@@ -517,13 +550,13 @@ fn scroll_with_cursor(
         ),
         (With<TextInputInner>, Changed<TextLayoutInfo>),
     >,
-    mut parents: Query<(&Node, &mut Style), Without<TextInputInner>>,
-    cameras: Query<&Camera>,
-    all_windows: Query<&Window>,
-    primary_window: Query<&Window, With<PrimaryWindow>>,
+    mut style_query: Query<(&Node, &mut Style), Without<TextInputInner>>,
+    camera_query: Query<&Camera>,
+    window_query: Query<&Window>,
+    primary_window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
-    for (layout, mut style, child_node, parent, target_camera) in texts.iter_mut() {
-        let Ok((parent_node, mut parent_style)) = parents.get_mut(parent.get()) else {
+    for (layout, mut style, child_node, parent, target_camera) in inner_text_query.iter_mut() {
+        let Ok((parent_node, mut parent_style)) = style_query.get_mut(parent.get()) else {
             continue;
         };
 
@@ -555,7 +588,7 @@ fn scroll_with_cursor(
         // glyph positions are not adjusted for scale factor so we do that here
         let window_ref = match target_camera {
             Some(target) => {
-                let Ok(camera) = cameras.get(target.0) else {
+                let Ok(camera) = camera_query.get(target.0) else {
                     continue;
                 };
 
@@ -570,8 +603,8 @@ fn scroll_with_cursor(
         let scale_factor = match window_ref {
             Some(window_ref) => {
                 let window = match window_ref {
-                    WindowRef::Entity(w) => all_windows.get(w).ok(),
-                    WindowRef::Primary => primary_window.get_single().ok(),
+                    WindowRef::Entity(w) => window_query.get(w).ok(),
+                    WindowRef::Primary => primary_window_query.get_single().ok(),
                 };
 
                 let Some(window) = window else {
