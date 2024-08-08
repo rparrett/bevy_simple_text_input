@@ -24,7 +24,7 @@
 
 use bevy::{
     asset::load_internal_binary_asset,
-    ecs::system::SystemParam,
+    ecs::{event::ManualEventReader, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     render::camera::RenderTarget,
@@ -237,7 +237,8 @@ impl<'w, 's> InnerText<'w, 's> {
 }
 
 fn keyboard(
-    mut events: EventReader<KeyboardInput>,
+    input_events: Res<Events<KeyboardInput>>,
+    input_reader: Local<ManualEventReader<KeyboardInput>>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
@@ -248,7 +249,7 @@ fn keyboard(
     )>,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
-    if events.is_empty() {
+    if input_reader.clone().read(&input_events).next().is_none() {
         return;
     }
 
@@ -261,14 +262,14 @@ fn keyboard(
 
         let mut submitted_value = None;
 
-        for event in events.read() {
-            if !event.state.is_pressed() {
+        for input in input_reader.clone().read(&input_events) {
+            if !input.state.is_pressed() {
                 continue;
             };
 
             let pos = cursor_pos.bypass_change_detection().0;
 
-            match event.key_code {
+            match input.key_code {
                 KeyCode::ArrowLeft => {
                     if pos > 0 {
                         cursor_pos.0 -= 1;
@@ -325,7 +326,7 @@ fn keyboard(
                 _ => {}
             }
 
-            if let Key::Character(ref s) = event.logical_key {
+            if let Key::Character(ref s) = input.logical_key {
                 let before = text_input.0.chars().take(cursor_pos.0);
                 let after = text_input.0.chars().skip(cursor_pos.0);
                 text_input.0 = before.chain(s.chars()).chain(after).collect();
