@@ -200,7 +200,7 @@ pub enum TextInputAction {
     WordRight,
 }
 /// A resource in which key bindings can be specified. All keys must be pressed simultaneously to perform the action.
-/// The first action will be performed, so a binding that is the same as another with additional modifier keys should 
+/// The first action will be performed, so a binding that is the same as another with additional modifier keys should
 /// be earlier in the vector to be applied.
 #[derive(Resource)]
 pub struct TextInputNavigationBindings(pub Vec<(TextInputAction, Vec<KeyCode>)>);
