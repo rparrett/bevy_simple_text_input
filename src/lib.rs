@@ -234,42 +234,40 @@ impl Default for TextInputNavigationBindings {
 #[cfg(target_os = "macos")]
 impl Default for TextInputNavigationBindings {
     fn default() -> Self {
-        fn default() -> Self {
-            Self(vec![
-                (
-                    TextInputAction::LineStart,
-                    vec![KeyCode::SuperLeft, KeyCode::ArrowLeft],
-                ),
-                (
-                    TextInputAction::LineStart,
-                    vec![KeyCode::SuperRight, KeyCode::ArrowLeft],
-                ),
-                (
-                    TextInputAction::LineEnd,
-                    vec![KeyCode::SuperLeft, KeyCode::ArrowRight],
-                ),
-                (
-                    TextInputAction::LineEnd,
-                    vec![KeyCode::SuperRight, KeyCode::ArrowRight],
-                ),
-                (
-                    TextInputAction::WordLeft,
-                    vec![KeyCode::AltLeft, KeyCode::ArrowLeft],
-                ),
-                (
-                    TextInputAction::WordLeft,
-                    vec![KeyCode::AltRight, KeyCode::ArrowLeft],
-                ),
-                (
-                    TextInputAction::WordRight,
-                    vec![KeyCode::AltLeft, KeyCode::ArrowRight],
-                ),
-                (
-                    TextInputAction::WordRight,
-                    vec![KeyCode::AltRight, KeyCode::ArrowRight],
-                ),
-            ])
-        }
+        Self(vec![
+            (
+                TextInputAction::LineStart,
+                vec![KeyCode::SuperLeft, KeyCode::ArrowLeft],
+            ),
+            (
+                TextInputAction::LineStart,
+                vec![KeyCode::SuperRight, KeyCode::ArrowLeft],
+            ),
+            (
+                TextInputAction::LineEnd,
+                vec![KeyCode::SuperLeft, KeyCode::ArrowRight],
+            ),
+            (
+                TextInputAction::LineEnd,
+                vec![KeyCode::SuperRight, KeyCode::ArrowRight],
+            ),
+            (
+                TextInputAction::WordLeft,
+                vec![KeyCode::AltLeft, KeyCode::ArrowLeft],
+            ),
+            (
+                TextInputAction::WordLeft,
+                vec![KeyCode::AltRight, KeyCode::ArrowLeft],
+            ),
+            (
+                TextInputAction::WordRight,
+                vec![KeyCode::AltLeft, KeyCode::ArrowRight],
+            ),
+            (
+                TextInputAction::WordRight,
+                vec![KeyCode::AltRight, KeyCode::ArrowRight],
+            ),
+        ])
     }
 }
 
