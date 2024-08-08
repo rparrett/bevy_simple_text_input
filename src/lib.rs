@@ -388,38 +388,6 @@ fn keyboard(
             }
         }
 
-        for (action, chord) in navigation.0.iter() {
-            if chord.iter().all(|key| key_input.pressed(*key))
-                && chord.iter().any(|key| key_input.just_pressed(*key))
-            {
-                match action {
-                    TextInputAction::LineStart => cursor_pos.0 = 0,
-                    TextInputAction::LineEnd => cursor_pos.0 = text_input.0.len(),
-                    TextInputAction::WordLeft => {
-                        cursor_pos.0 = text_input
-                            .0
-                            .char_indices()
-                            .rev()
-                            .skip(text_input.0.len() - cursor_pos.0 + 1)
-                            .find(|c| c.1.is_ascii_whitespace())
-                            .map(|(ix, _)| ix + 1)
-                            .unwrap_or(0)
-                    }
-                    TextInputAction::WordRight => {
-                        cursor_pos.0 = text_input
-                            .0
-                            .char_indices()
-                            .skip(cursor_pos.0)
-                            .find(|c| c.1.is_ascii_whitespace())
-                            .map(|(ix, _)| ix + 1)
-                            .unwrap_or(text_input.0.len())
-                    }
-                };
-                cursor_timer.should_reset = true;
-                continue 'text_input;
-            }
-        }
-
         for input in input_reader.clone().read(&input_events) {
             if !input.state.is_pressed() {
                 continue;
