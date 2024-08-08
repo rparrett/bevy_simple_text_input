@@ -382,7 +382,7 @@ fn update_value(
 }
 
 fn scroll_with_cursor(
-    mut texts: Query<
+    mut inner_text_query: Query<
         (
             &TextLayoutInfo,
             &mut Style,
@@ -392,13 +392,13 @@ fn scroll_with_cursor(
         ),
         (With<TextInputInner>, Changed<TextLayoutInfo>),
     >,
-    mut parents: Query<(&Node, &mut Style), Without<TextInputInner>>,
-    cameras: Query<&Camera>,
-    all_windows: Query<&Window>,
-    primary_window: Query<&Window, With<PrimaryWindow>>,
+    mut style_query: Query<(&Node, &mut Style), Without<TextInputInner>>,
+    camera_query: Query<&Camera>,
+    window_query: Query<&Window>,
+    primary_window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
-    for (layout, mut style, child_node, parent, target_camera) in texts.iter_mut() {
-        let Ok((parent_node, mut parent_style)) = parents.get_mut(parent.get()) else {
+    for (layout, mut style, child_node, parent, target_camera) in inner_text_query.iter_mut() {
+        let Ok((parent_node, mut parent_style)) = style_query.get_mut(parent.get()) else {
             continue;
         };
 
@@ -430,7 +430,7 @@ fn scroll_with_cursor(
         // glyph positions are not adjusted for scale factor so we do that here
         let window_ref = match target_camera {
             Some(target) => {
-                let Ok(camera) = cameras.get(target.0) else {
+                let Ok(camera) = camera_query.get(target.0) else {
                     continue;
                 };
 
@@ -445,8 +445,8 @@ fn scroll_with_cursor(
         let scale_factor = match window_ref {
             Some(window_ref) => {
                 let window = match window_ref {
-                    WindowRef::Entity(w) => all_windows.get(w).ok(),
-                    WindowRef::Primary => primary_window.get_single().ok(),
+                    WindowRef::Entity(w) => window_query.get(w).ok(),
+                    WindowRef::Primary => primary_window_query.get_single().ok(),
                 };
 
                 let Some(window) = window else {
