@@ -49,7 +49,8 @@ impl Plugin for TextInputPlugin {
             |bytes: &[u8], _path: String| { Font::try_from_bytes(bytes.to_vec()).unwrap() }
         );
 
-        app.add_event::<TextInputSubmitEvent>()
+        app.init_resource::<TextInputNavigationBindings>()
+            .add_event::<TextInputSubmitEvent>()
             .add_systems(
                 Update,
                 (
@@ -187,6 +188,91 @@ pub struct TextInputSettings {
     pub mask_character: Option<char>,
 }
 
+/// text navigation actions that can be bound via TextInputNavigationBindings
+pub enum TextInputAction {
+    /// Move to start of line
+    LineStart,
+    /// Move to end of line
+    LineEnd,
+    /// word left
+    WordLeft,
+    /// word right
+    WordRight,
+}
+/// A resource in which key bindings can be specified. All keys must be pressed simultaneously to perform the action.
+/// The first action will be performed, so a binding that is the same as another with additional modifier keys should 
+/// be earlier in the vector to be applied.
+#[derive(Resource)]
+pub struct TextInputNavigationBindings(pub Vec<(TextInputAction, Vec<KeyCode>)>);
+
+#[cfg(not(target_os = "macos"))]
+impl Default for TextInputNavigationBindings {
+    fn default() -> Self {
+        Self(vec![
+            (TextInputAction::LineStart, vec![KeyCode::Home]),
+            (TextInputAction::LineEnd, vec![KeyCode::End]),
+            (
+                TextInputAction::WordLeft,
+                vec![KeyCode::ControlLeft, KeyCode::ArrowLeft],
+            ),
+            (
+                TextInputAction::WordLeft,
+                vec![KeyCode::ControlRight, KeyCode::ArrowLeft],
+            ),
+            (
+                TextInputAction::WordRight,
+                vec![KeyCode::ControlLeft, KeyCode::ArrowRight],
+            ),
+            (
+                TextInputAction::WordRight,
+                vec![KeyCode::ControlRight, KeyCode::ArrowRight],
+            ),
+        ])
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Default for TextInputNavigationBindings {
+    fn default() -> Self {
+        fn default() -> Self {
+            Self(vec![
+                (
+                    TextInputAction::LineStart,
+                    vec![KeyCode::SuperLeft, KeyCode::ArrowLeft],
+                ),
+                (
+                    TextInputAction::LineStart,
+                    vec![KeyCode::SuperRight, KeyCode::ArrowLeft],
+                ),
+                (
+                    TextInputAction::LineEnd,
+                    vec![KeyCode::SuperLeft, KeyCode::ArrowRight],
+                ),
+                (
+                    TextInputAction::LineEnd,
+                    vec![KeyCode::SuperRight, KeyCode::ArrowRight],
+                ),
+                (
+                    TextInputAction::WordLeft,
+                    vec![KeyCode::AltLeft, KeyCode::ArrowLeft],
+                ),
+                (
+                    TextInputAction::WordLeft,
+                    vec![KeyCode::AltRight, KeyCode::ArrowLeft],
+                ),
+                (
+                    TextInputAction::WordRight,
+                    vec![KeyCode::AltLeft, KeyCode::ArrowRight],
+                ),
+                (
+                    TextInputAction::WordRight,
+                    vec![KeyCode::AltRight, KeyCode::ArrowRight],
+                ),
+            ])
+        }
+    }
+}
+
 /// A component containing the current value of the text input.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputValue(pub String);
@@ -237,6 +323,7 @@ impl<'w, 's> InnerText<'w, 's> {
 }
 
 fn keyboard(
+    key_input: Res<ButtonInput<KeyCode>>,
     mut events: EventReader<KeyboardInput>,
     mut text_input_query: Query<(
         Entity,
@@ -247,19 +334,58 @@ fn keyboard(
         &mut TextInputCursorTimer,
     )>,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
+    navigation: Res<TextInputNavigationBindings>,
 ) {
     if events.is_empty() {
         return;
     }
 
-    for (input_entity, settings, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
-        &mut text_input_query
+    'text_input: for (
+        input_entity,
+        settings,
+        inactive,
+        mut text_input,
+        mut cursor_pos,
+        mut cursor_timer,
+    ) in &mut text_input_query
     {
         if inactive.0 {
             continue;
         }
 
         let mut submitted_value = None;
+
+        for (action, chord) in navigation.0.iter() {
+            if chord.iter().all(|key| key_input.pressed(*key))
+                && chord.iter().any(|key| key_input.just_pressed(*key))
+            {
+                match action {
+                    TextInputAction::LineStart => cursor_pos.0 = 0,
+                    TextInputAction::LineEnd => cursor_pos.0 = text_input.0.len(),
+                    TextInputAction::WordLeft => {
+                        cursor_pos.0 = text_input
+                            .0
+                            .char_indices()
+                            .rev()
+                            .skip(text_input.0.len() - cursor_pos.0 + 1)
+                            .find(|c| c.1.is_ascii_whitespace())
+                            .map(|(ix, _)| ix + 1)
+                            .unwrap_or(0)
+                    }
+                    TextInputAction::WordRight => {
+                        cursor_pos.0 = text_input
+                            .0
+                            .char_indices()
+                            .skip(cursor_pos.0)
+                            .find(|c| c.1.is_ascii_whitespace())
+                            .map(|(ix, _)| ix + 1)
+                            .unwrap_or(text_input.0.len())
+                    }
+                };
+                cursor_timer.should_reset = true;
+                continue 'text_input;
+            }
+        }
 
         for event in events.read() {
             if !event.state.is_pressed() {
