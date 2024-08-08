@@ -24,7 +24,7 @@
 
 use bevy::{
     asset::load_internal_binary_asset,
-    ecs::system::SystemParam,
+    ecs::{event::ManualEventReader, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     render::camera::RenderTarget,
@@ -237,7 +237,8 @@ impl<'w, 's> InnerText<'w, 's> {
 }
 
 fn keyboard(
-    mut input_reader: EventReader<KeyboardInput>,
+    input_events: Res<Events<KeyboardInput>>,
+    input_reader: Local<ManualEventReader<KeyboardInput>>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
@@ -248,11 +249,9 @@ fn keyboard(
     )>,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
 ) {
-    if input_reader.is_empty() {
+    if input_reader.clone().read(&input_events).next().is_none() {
         return;
     }
-
-    let inputs: Vec<_> = input_reader.read().collect();
 
     for (input_entity, settings, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
         &mut text_input_query
@@ -263,7 +262,7 @@ fn keyboard(
 
         let mut submitted_value = None;
 
-        for input in &inputs {
+        for input in input_reader.clone().read(&input_events) {
             if !input.state.is_pressed() {
                 continue;
             };
