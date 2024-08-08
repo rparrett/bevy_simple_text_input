@@ -27,7 +27,9 @@ use bevy::{
     ecs::system::SystemParam,
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
+    render::camera::RenderTarget,
     text::{BreakLineOn, TextLayoutInfo},
+    window::{PrimaryWindow, WindowRef},
 };
 
 /// A Bevy `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
@@ -380,12 +382,21 @@ fn update_value(
 
 fn scroll_with_cursor(
     mut texts: Query<
-        (&TextLayoutInfo, &mut Style, &Node, &Parent),
+        (
+            &TextLayoutInfo,
+            &mut Style,
+            &Node,
+            &Parent,
+            Option<&TargetCamera>,
+        ),
         (With<TextInputInner>, Changed<TextLayoutInfo>),
     >,
     mut parents: Query<(&Node, &mut Style), Without<TextInputInner>>,
+    cameras: Query<&Camera>,
+    all_windows: Query<&Window>,
+    primary_window: Query<&Window, With<PrimaryWindow>>,
 ) {
-    for (layout, mut style, child_node, parent) in texts.iter_mut() {
+    for (layout, mut style, child_node, parent, target_camera) in texts.iter_mut() {
         let Ok((parent_node, mut parent_style)) = parents.get_mut(parent.get()) else {
             continue;
         };
@@ -414,6 +425,38 @@ fn scroll_with_cursor(
         else {
             continue;
         };
+
+        // glyph positions are not adjusted for scale factor so we do that here
+        let window_ref = match target_camera {
+            Some(target) => {
+                let Ok(camera) = cameras.get(target.0) else {
+                    continue;
+                };
+
+                match camera.target {
+                    RenderTarget::Window(window_ref) => Some(window_ref),
+                    _ => None,
+                }
+            }
+            None => Some(WindowRef::Primary),
+        };
+
+        let scale_factor = match window_ref {
+            Some(window_ref) => {
+                let window = match window_ref {
+                    WindowRef::Entity(w) => all_windows.get(w).ok(),
+                    WindowRef::Primary => primary_window.get_single().ok(),
+                };
+
+                let Some(window) = window else {
+                    continue;
+                };
+
+                window.scale_factor()
+            }
+            None => 1.0,
+        };
+        let cursor_pos = cursor_pos / scale_factor;
 
         let box_pos = match style.left {
             Val::Px(px) => -px,
