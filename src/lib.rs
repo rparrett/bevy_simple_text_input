@@ -653,6 +653,7 @@ fn create(
                     },
                     ..default()
                 },
+                Name::new("TextInputInner"),
                 TextInputInner,
             ))
             .id();
@@ -686,20 +687,24 @@ fn create(
                     },
                     ..default()
                 },
+                Name::new("TextInputPlaceholderInner"),
                 TextInputPlaceholderInner,
             ))
             .id();
 
         let overflow_container = commands
-            .spawn(NodeBundle {
-                style: Style {
-                    overflow: Overflow::clip(),
-                    justify_content: JustifyContent::FlexEnd,
-                    max_width: Val::Percent(100.),
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        overflow: Overflow::clip(),
+                        justify_content: JustifyContent::FlexEnd,
+                        max_width: Val::Percent(100.),
+                        ..default()
+                    },
                     ..default()
                 },
-                ..default()
-            })
+                Name::new("TextInputOverflowContainer"),
+            ))
             .id();
 
         commands.entity(overflow_container).add_child(text);
