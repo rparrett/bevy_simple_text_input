@@ -49,6 +49,9 @@ fn setup(mut commands: Commands) {
                     },
                     border_color: BORDER_COLOR_INACTIVE.into(),
                     background_color: BACKGROUND_COLOR.into(),
+                    // Prevent clicks on the input from also bubbling down to the container
+                    // behind it
+                    focus_policy: bevy::ui::FocusPolicy::Block,
                     ..default()
                 },
                 TextInputBundle::default()
