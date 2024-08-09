@@ -49,7 +49,8 @@ impl Plugin for TextInputPlugin {
             |bytes: &[u8], _path: String| { Font::try_from_bytes(bytes.to_vec()).unwrap() }
         );
 
-        app.add_event::<TextInputSubmitEvent>()
+        app.init_resource::<TextInputNavigationBindings>()
+            .add_event::<TextInputSubmitEvent>()
             .add_systems(
                 Update,
                 (
@@ -189,6 +190,101 @@ pub struct TextInputSettings {
     pub mask_character: Option<char>,
 }
 
+/// text navigation actions that can be bound via TextInputNavigationBindings
+#[derive(Debug)]
+pub enum TextInputAction {
+    /// char left
+    CharLeft,
+    /// char right
+    CharRight,
+    /// start of line
+    LineStart,
+    /// end of line
+    LineEnd,
+    /// word left
+    WordLeft,
+    /// word right
+    WordRight,
+    /// backspace
+    DeletePrev,
+    /// delete
+    DeleteNext,
+    /// enter
+    Submit,
+}
+/// A resource in which key bindings can be specified. Bindings are given as a tuple of (Primary Key, Modifiers).
+/// All modifiers must be held when the primary key is pressed to perform the action.
+/// The first matching action in the list will be performed, so a binding that is the same as another with additional
+/// modifier keys should be earlier in the vector to be applied.
+#[derive(Resource)]
+pub struct TextInputNavigationBindings(pub Vec<(TextInputAction, TextInputBinding)>);
+
+/// A binding for text navigation
+pub struct TextInputBinding {
+    /// primary key
+    key: KeyCode,
+    /// required modifiers
+    modifiers: Vec<KeyCode>,
+}
+
+impl TextInputBinding {
+    /// new
+    pub fn new(key: KeyCode, modifiers: impl Into<Vec<KeyCode>>) -> Self {
+        Self {
+            key,
+            modifiers: modifiers.into(),
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+impl Default for TextInputNavigationBindings {
+    fn default() -> Self {
+        use KeyCode::*;
+        use TextInputAction::*;
+        Self(vec![
+            (LineStart, TextInputBinding::new(Home, [])),
+            (LineEnd, TextInputBinding::new(End, [])),
+            (WordLeft, TextInputBinding::new(ArrowLeft, [ControlLeft])),
+            (WordLeft, TextInputBinding::new(ArrowLeft, [ControlRight])),
+            (WordRight, TextInputBinding::new(ArrowRight, [ControlLeft])),
+            (WordRight, TextInputBinding::new(ArrowRight, [ControlRight])),
+            (CharLeft, TextInputBinding::new(ArrowLeft, [])),
+            (CharRight, TextInputBinding::new(ArrowRight, [])),
+            (DeletePrev, TextInputBinding::new(Backspace, [])),
+            (DeletePrev, TextInputBinding::new(NumpadBackspace, [])),
+            (DeleteNext, TextInputBinding::new(Delete, [])),
+            (Submit, TextInputBinding::new(Enter, [])),
+            (Submit, TextInputBinding::new(NumpadEnter, [])),
+        ])
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Default for TextInputNavigationBindings {
+    fn default() -> Self {
+        use KeyCode::*;
+        use TextInputAction::*;
+        Self(vec![
+            (LineStart, TextInputBinding::new(ArrowLeft, [SuperLeft])),
+            (LineStart, TextInputBinding::new(ArrowLeft, [SuperRight])),
+            (LineEnd, TextInputBinding::new(ArrowRight, [SuperLeft])),
+            (LineEnd, TextInputBinding::new(ArrowRight, [SuperRight])),
+            (WordLeft, TextInputBinding::new(ArrowLeft, [AltLeft])),
+            (WordLeft, TextInputBinding::new(ArrowLeft, [AltRight])),
+            (WordRight, TextInputBinding::new(ArrowRight, [AltLeft])),
+            (WordRight, TextInputBinding::new(ArrowRight, [AltRight])),
+            (CharLeft, TextInputBinding::new(ArrowLeft, [])),
+            (CharRight, TextInputBinding::new(ArrowRight, [])),
+            (DeletePrev, TextInputBinding::new(Backspace, [])),
+            (DeletePrev, TextInputBinding::new(NumpadBackspace, [])),
+            (DeleteNext, TextInputBinding::new(Delete, [])),
+            (Submit, TextInputBinding::new(Enter, [])),
+            (Submit, TextInputBinding::new(NumpadEnter, [])),
+        ])
+    }
+}
+
 /// A component containing the current value of the text input.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputValue(pub String);
@@ -239,6 +335,7 @@ impl<'w, 's> InnerText<'w, 's> {
 }
 
 fn keyboard(
+    key_input: Res<ButtonInput<KeyCode>>,
     input_events: Res<Events<KeyboardInput>>,
     input_reader: Local<ManualEventReader<KeyboardInput>>,
     mut text_input_query: Query<(
@@ -250,10 +347,20 @@ fn keyboard(
         &mut TextInputCursorTimer,
     )>,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
+    navigation: Res<TextInputNavigationBindings>,
 ) {
     if input_reader.clone().read(&input_events).next().is_none() {
         return;
     }
+
+    // collect actions that have all required modifiers held
+    let valid_actions = navigation
+        .0
+        .iter()
+        .filter(|(_, TextInputBinding { modifiers, .. })| {
+            modifiers.iter().all(|m| key_input.pressed(*m))
+        })
+        .map(|(action, TextInputBinding { key, .. })| (*key, action));
 
     for (input_entity, settings, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
         &mut text_input_query
@@ -271,71 +378,84 @@ fn keyboard(
 
             let pos = cursor_pos.bypass_change_detection().0;
 
-            match input.key_code {
-                KeyCode::ArrowLeft => {
-                    if pos > 0 {
-                        cursor_pos.0 -= 1;
+            if let Some((_, action)) = valid_actions
+                .clone()
+                .find(|(key, _)| *key == input.key_code)
+            {
+                use TextInputAction::*;
+                let mut timer_should_reset = true;
+                match action {
+                    CharLeft => cursor_pos.0 = cursor_pos.0.saturating_sub(1),
+                    CharRight => cursor_pos.0 = (cursor_pos.0 + 1).min(text_input.0.len()),
+                    LineStart => cursor_pos.0 = 0,
+                    LineEnd => cursor_pos.0 = text_input.0.len(),
+                    WordLeft => {
+                        cursor_pos.0 = text_input
+                            .0
+                            .char_indices()
+                            .rev()
+                            .skip(text_input.0.len() - cursor_pos.0 + 1)
+                            .skip_while(|c| c.1.is_ascii_whitespace())
+                            .find(|c| c.1.is_ascii_whitespace())
+                            .map(|(ix, _)| ix + 1)
+                            .unwrap_or(0)
+                    }
+                    WordRight => {
+                        cursor_pos.0 = text_input
+                            .0
+                            .char_indices()
+                            .skip(cursor_pos.0)
+                            .skip_while(|c| !c.1.is_ascii_whitespace())
+                            .find(|c| !c.1.is_ascii_whitespace())
+                            .map(|(ix, _)| ix)
+                            .unwrap_or(text_input.0.len())
+                    }
+                    DeletePrev => {
+                        if pos > 0 {
+                            cursor_pos.0 -= 1;
+                            text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
+                        }
+                    }
+                    DeleteNext => {
+                        if pos < text_input.0.len() {
+                            text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
 
-                        cursor_timer.should_reset = true;
-                        continue;
+                            // Ensure that the cursor isn't reset
+                            cursor_pos.set_changed();
+                        }
+                    }
+                    Submit => {
+                        if settings.retain_on_submit {
+                            submitted_value = Some(text_input.0.clone());
+                        } else {
+                            submitted_value = Some(std::mem::take(&mut text_input.0));
+                            cursor_pos.0 = 0;
+                        };
+                        timer_should_reset = false;
                     }
                 }
-                KeyCode::ArrowRight => {
-                    if pos < text_input.0.len() {
-                        cursor_pos.0 += 1;
 
-                        cursor_timer.should_reset = true;
-                        continue;
-                    }
-                }
-                KeyCode::Backspace => {
-                    if pos > 0 {
-                        cursor_pos.0 -= 1;
-                        text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
+                cursor_timer.should_reset |= timer_should_reset;
+                continue;
+            }
 
-                        cursor_timer.should_reset = true;
-                        continue;
-                    }
-                }
-                KeyCode::Delete => {
-                    if pos < text_input.0.len() {
-                        text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
-
-                        // Ensure that the cursor isn't reset
-                        cursor_pos.set_changed();
-
-                        cursor_timer.should_reset = true;
-                        continue;
-                    }
-                }
-                KeyCode::Enter => {
-                    if settings.retain_on_submit {
-                        submitted_value = Some(text_input.0.clone());
-                    } else {
-                        submitted_value = Some(std::mem::take(&mut text_input.0));
-                        cursor_pos.0 = 0;
-                    };
-
-                    continue;
-                }
-                KeyCode::Space => {
+            match input.logical_key {
+                Key::Space => {
                     text_input.0.insert(pos, ' ');
                     cursor_pos.0 += 1;
 
                     cursor_timer.should_reset = true;
-                    continue;
                 }
-                _ => {}
-            }
+                Key::Character(ref s) => {
+                    let before = text_input.0.chars().take(cursor_pos.0);
+                    let after = text_input.0.chars().skip(cursor_pos.0);
+                    text_input.0 = before.chain(s.chars()).chain(after).collect();
 
-            if let Key::Character(ref s) = input.logical_key {
-                let before = text_input.0.chars().take(cursor_pos.0);
-                let after = text_input.0.chars().skip(cursor_pos.0);
-                text_input.0 = before.chain(s.chars()).chain(after).collect();
+                    cursor_pos.0 += 1;
 
-                cursor_pos.0 += 1;
-
-                cursor_timer.should_reset = true;
+                    cursor_timer.should_reset = true;
+                }
+                _ => (),
             }
         }
 
