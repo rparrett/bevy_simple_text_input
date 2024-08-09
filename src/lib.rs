@@ -30,6 +30,7 @@ use bevy::{
     prelude::*,
     render::camera::RenderTarget,
     text::{BreakLineOn, TextLayoutInfo},
+    ui::FocusPolicy,
     window::{PrimaryWindow, WindowRef},
 };
 
@@ -52,10 +53,10 @@ impl Plugin for TextInputPlugin {
 
         app.init_resource::<TextInputNavigationBindings>()
             .add_event::<TextInputSubmitEvent>()
+            .observe(create)
             .add_systems(
                 Update,
                 (
-                    create,
                     keyboard,
                     update_value.after(keyboard),
                     blink_cursor,
@@ -819,21 +820,20 @@ fn scroll_with_cursor(
 }
 
 fn create(
+    trigger: Trigger<OnAdd, TextInputValue>,
     mut commands: Commands,
-    query: Query<
-        (
-            Entity,
-            &TextInputTextStyle,
-            &TextInputValue,
-            &TextInputCursorPos,
-            &TextInputInactive,
-            &TextInputSettings,
-            &TextInputPlaceholder,
-        ),
-        Added<TextInputValue>,
-    >,
+    query: Query<(
+        &TextInputTextStyle,
+        &TextInputValue,
+        &TextInputCursorPos,
+        &TextInputInactive,
+        &TextInputSettings,
+        &TextInputPlaceholder,
+    )>,
 ) {
-    for (entity, style, text_input, cursor_pos, inactive, settings, placeholder) in &query {
+    if let Ok((style, text_input, cursor_pos, inactive, settings, placeholder)) =
+        &query.get(trigger.entity())
+    {
         let mut sections = vec![
             // Pre-cursor
             TextSection {
@@ -884,6 +884,7 @@ fn create(
                     },
                     ..default()
                 },
+                Name::new("TextInputInner"),
                 TextInputInner,
             ))
             .id();
@@ -917,29 +918,36 @@ fn create(
                     },
                     ..default()
                 },
+                Name::new("TextInputPlaceholderInner"),
                 TextInputPlaceholderInner,
             ))
             .id();
 
         let overflow_container = commands
-            .spawn(NodeBundle {
-                style: Style {
-                    overflow: Overflow::clip(),
-                    justify_content: JustifyContent::FlexEnd,
-                    align_items: AlignItems::FlexEnd,
-                    max_width: Val::Percent(100.),
-                    min_height: Val::Percent(100.0),
-                    max_height: Val::Percent(100.0),
-                    ..default()
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        overflow: Overflow::clip(),
+                        justify_content: JustifyContent::FlexEnd,
+                        align_items: AlignItems::FlexEnd,
+                        max_width: Val::Percent(100.),
+                        min_height: Val::Percent(100.0),
+                        max_height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    ..Default::default()
                 },
-                ..default()
-            })
+                Name::new("TextInputOverflowContainer"),
+            ))
             .id();
 
         commands.entity(overflow_container).add_child(text);
         commands
-            .entity(entity)
+            .entity(trigger.entity())
             .push_children(&[overflow_container, placeholder_text]);
+
+        // Prevent clicks from registering on UI elements underneath the text input.
+        commands.entity(trigger.entity()).insert(FocusPolicy::Block);
     }
 }
 
@@ -1032,10 +1040,13 @@ fn show_hide_placeholder(
 }
 
 fn update_style(
-    mut input_query: Query<(Entity, &TextInputTextStyle), Changed<TextInputTextStyle>>,
+    mut input_query: Query<
+        (Entity, &TextInputTextStyle, &TextInputInactive),
+        Changed<TextInputTextStyle>,
+    >,
     mut inner_text: InnerText,
 ) {
-    for (entity, style) in &mut input_query {
+    for (entity, style, inactive) in &mut input_query {
         let Some(mut text) = inner_text.get_mut(entity) else {
             continue;
         };
@@ -1043,6 +1054,11 @@ fn update_style(
         text.sections[0].style = style.0.clone();
         text.sections[1].style = TextStyle {
             font: CURSOR_HANDLE,
+            color: if inactive.0 {
+                Color::NONE
+            } else {
+                style.0.color
+            },
             ..style.0.clone()
         };
         text.sections[2].style = style.0.clone();
