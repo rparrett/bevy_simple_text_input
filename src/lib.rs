@@ -181,6 +181,8 @@ impl Default for TextInputCursorTimer {
 /// A component containing the text input's settings.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputSettings {
+    /// multiline
+    pub multiline: bool,
     /// If true, text is not cleared after pressing enter.
     pub retain_on_submit: bool,
     /// Mask text with the provided character.
@@ -408,21 +410,23 @@ fn scroll_with_cursor(
             // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame to move into view
             Some(1) => {
                 style.left = Val::Auto;
+                style.top = Val::Auto;
                 parent_style.justify_content = JustifyContent::FlexEnd;
+                parent_style.align_items = AlignItems::FlexEnd;
                 return;
             }
             _ => (),
         }
 
-        // if cursor is in the middle, we use FlexStart + `left` px for consistent behaviour when typing the middle
-        let child_size = child_node.size().x;
-        let parent_size = parent_node.size().x;
+        // if cursor is in the middle, we use FlexStart + `top`/`left` px for consistent behaviour when typing the middle
+        let child_size = child_node.size();
+        let parent_size = parent_node.size();
 
-        let Some(cursor_pos) = layout
+        let Some((cursor_pos, cursor_size)) = layout
             .glyphs
             .iter()
             .find(|g| g.section_index == 1)
-            .map(|p| p.position.x)
+            .map(|p| (p.position, p.size * Vec2::Y))
         else {
             continue;
         };
@@ -459,18 +463,25 @@ fn scroll_with_cursor(
         };
         let cursor_pos = cursor_pos / scale_factor;
 
-        let box_pos = match style.left {
+        let box_pos_x = match style.left {
             Val::Px(px) => -px,
-            _ => child_size - parent_size,
+            _ => child_size.x - parent_size.x,
         };
 
-        let relative_pos = cursor_pos - box_pos;
+        let box_pos_y = match style.top {
+            Val::Px(px) => -px,
+            _ => child_size.y - parent_size.y,
+        };
 
-        if relative_pos < 0.0 || relative_pos > parent_size {
+        let relative_pos = cursor_pos - Vec2::new(box_pos_x, box_pos_y);
+
+        if (relative_pos - cursor_size * 0.5).cmplt(Vec2::ZERO).any() || (relative_pos + cursor_size * 0.5).cmpgt(parent_size).any() {
             let req_px = parent_size * 0.5 - cursor_pos;
-            let req_px = req_px.clamp(parent_size - child_size, 0.0);
-            style.left = Val::Px(req_px);
+            let req_px = req_px.clamp(parent_size - child_size, Vec2::ZERO);
+            style.left = Val::Px(req_px.x);
+            style.top = Val::Px(req_px.y);
             parent_style.justify_content = JustifyContent::FlexStart;
+            parent_style.align_items = AlignItems::FlexStart;
         }
     }
 }
@@ -527,9 +538,17 @@ fn create(
             .spawn((
                 TextBundle {
                     text: Text {
-                        linebreak_behavior: BreakLineOn::NoWrap,
+                        linebreak_behavior: if settings.multiline {
+                            BreakLineOn::WordBoundary
+                        } else {
+                            BreakLineOn::NoWrap
+                        },
                         sections,
                         ..default()
+                    },
+                    style: Style {
+                        min_height: Val::Percent(100.0),
+                        ..Default::default()
                     },
                     ..default()
                 },
@@ -575,7 +594,10 @@ fn create(
                 style: Style {
                     overflow: Overflow::clip(),
                     justify_content: JustifyContent::FlexEnd,
+                    align_items: AlignItems::FlexEnd,
                     max_width: Val::Percent(100.),
+                    min_height: Val::Percent(100.0),
+                    max_height: Val::Percent(100.0),
                     ..default()
                 },
                 ..default()

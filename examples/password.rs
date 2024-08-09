@@ -52,6 +52,7 @@ fn setup(mut commands: Commands) {
                     .with_settings(TextInputSettings {
                         mask_character: Some('*'),
                         retain_on_submit: true,
+                        ..Default::default()
                     }),
             ));
         });
