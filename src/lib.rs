@@ -189,45 +189,46 @@ pub struct TextInputSettings {
     pub mask_character: Option<char>,
 }
 
-/// text navigation actions that can be bound via TextInputNavigationBindings
+/// Text navigation actions that can be bound via `TextInputNavigationBindings`.
 #[derive(Debug)]
 pub enum TextInputAction {
-    /// char left
+    /// Moves the cursor one char to the left.
     CharLeft,
-    /// char right
+    /// Moves the cursor one char to the right.
     CharRight,
-    /// start of line
+    /// Moves the cursor to the start of line.
     LineStart,
-    /// end of line
+    /// Moves the cursor to the end of line.
     LineEnd,
-    /// word left
+    /// Moves the cursor one word to the left.
     WordLeft,
-    /// word right
+    /// Moves the cursor one word to the right.
     WordRight,
-    /// backspace
+    /// Removes the char left of the cursor.
     DeletePrev,
-    /// delete
+    /// Removes the char right of the cursor.
     DeleteNext,
-    /// enter
+    /// Triggers a `TextInputSubmitEvent`, optionally clearing the text input.
     Submit,
 }
-/// A resource in which key bindings can be specified. Bindings are given as a tuple of (Primary Key, Modifiers).
+/// A resource in which key bindings can be specified. Bindings are given as a tuple of (`TextInputAction`, `TextInputBinding`).
+///
 /// All modifiers must be held when the primary key is pressed to perform the action.
 /// The first matching action in the list will be performed, so a binding that is the same as another with additional
 /// modifier keys should be earlier in the vector to be applied.
 #[derive(Resource)]
 pub struct TextInputNavigationBindings(pub Vec<(TextInputAction, TextInputBinding)>);
 
-/// A binding for text navigation
+/// A combination of a key and required modifier keys that might trigger a `TextInputAction`.
 pub struct TextInputBinding {
-    /// primary key
+    /// Primary key
     key: KeyCode,
-    /// required modifiers
+    /// Required modifier keys
     modifiers: Vec<KeyCode>,
 }
 
 impl TextInputBinding {
-    /// new
+    /// Creates a new `TextInputBinding` from a key and required modifiers.
     pub fn new(key: KeyCode, modifiers: impl Into<Vec<KeyCode>>) -> Self {
         Self {
             key,
