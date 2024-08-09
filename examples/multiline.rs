@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_simple_text_input::{
-    TextInputBundle, TextInputPlugin, TextInputSettings, TextInputSubmitEvent, TextInputSystem
+    TextInputBundle, TextInputPlugin, TextInputSettings, TextInputSubmitEvent, TextInputSystem,
 };
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);

@@ -26,6 +26,7 @@ use bevy::{
     asset::load_internal_binary_asset,
     ecs::{event::ManualEventReader, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
+    math::FloatOrd,
     prelude::*,
     render::camera::RenderTarget,
     text::{BreakLineOn, TextLayoutInfo},
@@ -197,20 +198,30 @@ pub enum TextInputAction {
     CharLeft,
     /// char right
     CharRight,
-    /// start of line
-    LineStart,
-    /// end of line
-    LineEnd,
     /// word left
     WordLeft,
     /// word right
     WordRight,
+    /// start of line
+    LineStart,
+    /// end of line
+    LineEnd,
+    /// move up one line
+    LineUp,
+    /// move down one line
+    LineDown,
+    /// document start
+    TextStart,
+    /// document end
+    TextEnd,
     /// backspace
     DeletePrev,
     /// delete
     DeleteNext,
     /// enter
     Submit,
+    /// add a new line
+    NewLine,
 }
 /// A resource in which key bindings can be specified. Bindings are given as a tuple of (Primary Key, Modifiers).
 /// All modifiers must be held when the primary key is pressed to perform the action.
@@ -243,6 +254,11 @@ impl Default for TextInputNavigationBindings {
         use KeyCode::*;
         use TextInputAction::*;
         Self(vec![
+            // TextStart/End must be before LineStart/End as they are the same but with modifiers
+            (TextStart, TextInputBinding::new(Home, [ControlLeft])),
+            (TextStart, TextInputBinding::new(Home, [ControlRight])),
+            (TextEnd, TextInputBinding::new(End, [ControlLeft])),
+            (TextEnd, TextInputBinding::new(End, [ControlRight])),
             (LineStart, TextInputBinding::new(Home, [])),
             (LineEnd, TextInputBinding::new(End, [])),
             (WordLeft, TextInputBinding::new(ArrowLeft, [ControlLeft])),
@@ -251,9 +267,14 @@ impl Default for TextInputNavigationBindings {
             (WordRight, TextInputBinding::new(ArrowRight, [ControlRight])),
             (CharLeft, TextInputBinding::new(ArrowLeft, [])),
             (CharRight, TextInputBinding::new(ArrowRight, [])),
+            (LineUp, TextInputBinding::new(ArrowUp, [])),
+            (LineDown, TextInputBinding::new(ArrowDown, [])),
             (DeletePrev, TextInputBinding::new(Backspace, [])),
             (DeletePrev, TextInputBinding::new(NumpadBackspace, [])),
             (DeleteNext, TextInputBinding::new(Delete, [])),
+            // newline must be before submit as it is the same but with modifiers
+            (NewLine, TextInputBinding::new(Enter, [ShiftLeft])),
+            (NewLine, TextInputBinding::new(Enter, [ShiftRight])),
             (Submit, TextInputBinding::new(Enter, [])),
             (Submit, TextInputBinding::new(NumpadEnter, [])),
         ])
@@ -276,9 +297,16 @@ impl Default for TextInputNavigationBindings {
             (WordRight, TextInputBinding::new(ArrowRight, [AltRight])),
             (CharLeft, TextInputBinding::new(ArrowLeft, [])),
             (CharRight, TextInputBinding::new(ArrowRight, [])),
+            (LineUp, TextInputBinding::new(ArrowUp, [])),
+            (LineDown, TextInputBinding::new(ArrowDown, [])),
             (DeletePrev, TextInputBinding::new(Backspace, [])),
             (DeletePrev, TextInputBinding::new(NumpadBackspace, [])),
             (DeleteNext, TextInputBinding::new(Delete, [])),
+            // newline must be before submit as it is the same but with modifiers
+            (NewLine, TextInputBinding::new(Enter, [ShiftLeft])),
+            (NewLine, TextInputBinding::new(Enter, [ShiftRight])),
+            (NewLine, TextInputBinding::new(Enter, [AltLeft])),
+            (NewLine, TextInputBinding::new(Enter, [AltRight])),
             (Submit, TextInputBinding::new(Enter, [])),
             (Submit, TextInputBinding::new(NumpadEnter, [])),
         ])
@@ -323,14 +351,22 @@ pub struct TextInputSubmitEvent {
 #[derive(SystemParam)]
 struct InnerText<'w, 's> {
     text_query: Query<'w, 's, &'static mut Text, With<TextInputInner>>,
+    layout_query: Query<'w, 's, &'static TextLayoutInfo, With<TextInputInner>>,
     children_query: Query<'w, 's, &'static Children>,
 }
 impl<'w, 's> InnerText<'w, 's> {
     fn get_mut(&mut self, entity: Entity) -> Option<Mut<'_, Text>> {
+        self.text_query.get_mut(self.inner_entity(entity)?).ok()
+    }
+
+    fn inner_layout(&self, entity: Entity) -> Option<&TextLayoutInfo> {
+        self.layout_query.get(self.inner_entity(entity)?).ok()
+    }
+
+    fn inner_entity(&self, entity: Entity) -> Option<Entity> {
         self.children_query
             .iter_descendants(entity)
             .find(|descendant_entity| self.text_query.get(*descendant_entity).is_ok())
-            .and_then(|text_entity| self.text_query.get_mut(text_entity).ok())
     }
 }
 
@@ -348,6 +384,7 @@ fn keyboard(
     )>,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
     navigation: Res<TextInputNavigationBindings>,
+    inner_text: InnerText,
 ) {
     if input_reader.clone().read(&input_events).next().is_none() {
         return;
@@ -387,8 +424,85 @@ fn keyboard(
                 match action {
                     CharLeft => cursor_pos.0 = cursor_pos.0.saturating_sub(1),
                     CharRight => cursor_pos.0 = (cursor_pos.0 + 1).min(text_input.0.len()),
-                    LineStart => cursor_pos.0 = 0,
-                    LineEnd => cursor_pos.0 = text_input.0.len(),
+                    TextStart => cursor_pos.0 = 0,
+                    TextEnd => cursor_pos.0 = text_input.0.len(),
+                    LineStart => {
+                        if settings.multiline {
+                            let Some(layout) = inner_text.inner_layout(input_entity) else {
+                                continue;
+                            };
+                            // find the cursor glyph pos
+                            let mut glyphs = layout
+                                .glyphs
+                                .iter()
+                                .rev()
+                                .skip_while(|g| g.section_index != 1);
+                            let Some((cursor_xy, cursor_height)) =
+                                glyphs.next().map(|g| (g.position, g.size.y))
+                            else {
+                                continue;
+                            };
+
+                            // find glyphs on the same line
+                            let glyphs = glyphs
+                                .take_while(|g| g.position.y >= cursor_xy.y - cursor_height * 0.75);
+                            // take last
+                            let glyph = glyphs.last();
+
+                            // find corresponding string index
+                            let string_ix = glyph
+                                .and_then(|glyph| {
+                                    text_input
+                                        .0
+                                        .char_indices()
+                                        .enumerate()
+                                        .find(|(_, (char_ix, _))| *char_ix == glyph.byte_index)
+                                        .map(|(string_ix, _)| string_ix)
+                                })
+                                .unwrap_or(0);
+                            cursor_pos.0 = string_ix;
+                        } else {
+                            cursor_pos.0 = 0;
+                        }
+                    }
+                    LineEnd => {
+                        if settings.multiline {
+                            let Some(layout) = inner_text.inner_layout(input_entity) else {
+                                continue;
+                            };
+                            // find the cursor glyph pos
+                            let mut glyphs =
+                                layout.glyphs.iter().skip_while(|g| g.section_index != 1);
+                            let Some((cursor_xy, cursor_height)) =
+                                glyphs.next().map(|g| (g.position, g.size.y))
+                            else {
+                                continue;
+                            };
+
+                            // find glyphs on the same line
+                            let glyphs = glyphs
+                                .take_while(|g| g.position.y <= cursor_xy.y + cursor_height * 0.75);
+                            // take last
+                            let glyph = glyphs.last();
+
+                            // find corresponding string index
+                            let string_ix = glyph
+                                .and_then(|glyph| {
+                                    text_input
+                                        .0
+                                        .split_at(pos)
+                                        .1
+                                        .char_indices()
+                                        .enumerate()
+                                        .find(|(_, (char_ix, _))| *char_ix == glyph.byte_index)
+                                        .map(|(string_ix, _)| pos + string_ix)
+                                })
+                                .unwrap_or(text_input.0.len());
+                            cursor_pos.0 = string_ix + 1;
+                        } else {
+                            cursor_pos.0 = text_input.0.len();
+                        }
+                    }
                     WordLeft => {
                         cursor_pos.0 = text_input
                             .0
@@ -410,6 +524,96 @@ fn keyboard(
                             .map(|(ix, _)| ix)
                             .unwrap_or(text_input.0.len())
                     }
+                    LineUp => {
+                        let Some(layout) = inner_text.inner_layout(input_entity) else {
+                            continue;
+                        };
+                        // find the cursor glyph pos
+                        let mut glyphs = layout
+                            .glyphs
+                            .iter()
+                            .rev()
+                            .skip_while(|g| g.section_index != 1);
+                        let Some((cursor_xy, cursor_height)) =
+                            glyphs.next().map(|g| (g.position, g.size.y))
+                        else {
+                            continue;
+                        };
+
+                        // find glyphs on the line above
+                        let glyphs = glyphs
+                            .skip_while(|g| g.position.y >= cursor_xy.y - cursor_height * 0.75)
+                            .take_while(|g| g.position.y >= cursor_xy.y - cursor_height * 1.75);
+                        // find nearest in x
+                        let glyph = glyphs.min_by_key(|g| {
+                            FloatOrd(f32::abs(g.position.x - g.size.x * 0.5 - cursor_xy.x))
+                        });
+
+                        // find corresponding string index
+                        let string_ix = glyph
+                            .and_then(|glyph| {
+                                text_input
+                                    .0
+                                    .char_indices()
+                                    .enumerate()
+                                    .find(|(_, (char_ix, _))| *char_ix == glyph.byte_index)
+                                    .map(|(string_ix, _)| {
+                                        // adjust for spaces which don't have glyphs
+                                        let adj =
+                                            ((glyph.position.x - glyph.size.x * 0.5 - cursor_xy.x)
+                                                / glyph.size.x)
+                                                .round()
+                                                as i32;
+                                        (string_ix as i32 - adj) as usize
+                                    })
+                            })
+                            .unwrap_or(0);
+                        cursor_pos.0 = string_ix;
+                    }
+                    LineDown => {
+                        let Some(layout) = inner_text.inner_layout(input_entity) else {
+                            continue;
+                        };
+                        // find the cursor glyph pos
+                        let mut glyphs = layout.glyphs.iter().skip_while(|g| g.section_index != 1);
+                        let Some((cursor_xy, cursor_height)) =
+                            glyphs.next().map(|g| (g.position, g.size.y))
+                        else {
+                            continue;
+                        };
+
+                        // find glyphs on the line below
+                        let glyphs = glyphs
+                            .skip_while(|g| g.position.y <= cursor_xy.y + cursor_height * 0.75)
+                            .take_while(|g| g.position.y <= cursor_xy.y + cursor_height * 1.75);
+                        // find nearest in x
+                        let glyph = glyphs.min_by_key(|g| {
+                            FloatOrd(f32::abs(g.position.x - g.size.x * 0.5 - cursor_xy.x))
+                        });
+
+                        // find corresponding string index
+                        let string_ix = glyph
+                            .and_then(|glyph| {
+                                text_input
+                                    .0
+                                    .split_at(pos)
+                                    .1
+                                    .char_indices()
+                                    .enumerate()
+                                    .find(|(_, (char_ix, _))| *char_ix == glyph.byte_index)
+                                    .map(|(string_ix, _)| {
+                                        // adjust for spaces which don't have glyphs
+                                        let adj =
+                                            ((glyph.position.x - glyph.size.x * 0.5 - cursor_xy.x)
+                                                / glyph.size.x)
+                                                .round()
+                                                as i32;
+                                        ((pos + string_ix) as i32 - adj) as usize
+                                    })
+                            })
+                            .unwrap_or(text_input.0.len());
+                        cursor_pos.0 = string_ix;
+                    }
                     DeletePrev => {
                         if pos > 0 {
                             cursor_pos.0 -= 1;
@@ -422,6 +626,12 @@ fn keyboard(
 
                             // Ensure that the cursor isn't reset
                             cursor_pos.set_changed();
+                        }
+                    }
+                    NewLine => {
+                        if settings.multiline {
+                            text_input.0.insert(pos, '\n');
+                            cursor_pos.0 += 1;
                         }
                     }
                     Submit => {
@@ -595,7 +805,9 @@ fn scroll_with_cursor(
 
         let relative_pos = cursor_pos - Vec2::new(box_pos_x, box_pos_y);
 
-        if (relative_pos - cursor_size * 0.5).cmplt(Vec2::ZERO).any() || (relative_pos + cursor_size * 0.5).cmpgt(parent_size).any() {
+        if (relative_pos - cursor_size * 0.5).cmplt(Vec2::ZERO).any()
+            || (relative_pos + cursor_size * 0.5).cmpgt(parent_size).any()
+        {
             let req_px = parent_size * 0.5 - cursor_pos;
             let req_px = req_px.clamp(parent_size - child_size, Vec2::ZERO);
             style.left = Val::Px(req_px.x);
