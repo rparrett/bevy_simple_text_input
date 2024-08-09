@@ -367,6 +367,7 @@ fn keyboard(
                             .char_indices()
                             .rev()
                             .skip(text_input.0.len() - cursor_pos.0 + 1)
+                            .skip_while(|c| c.1.is_ascii_whitespace())
                             .find(|c| c.1.is_ascii_whitespace())
                             .map(|(ix, _)| ix + 1)
                             .unwrap_or(0)
@@ -376,8 +377,9 @@ fn keyboard(
                             .0
                             .char_indices()
                             .skip(cursor_pos.0)
-                            .find(|c| c.1.is_ascii_whitespace())
-                            .map(|(ix, _)| ix + 1)
+                            .skip_while(|c| !c.1.is_ascii_whitespace())
+                            .find(|c| !c.1.is_ascii_whitespace())
+                            .map(|(ix, _)| ix)
                             .unwrap_or(text_input.0.len())
                     }
                 };
