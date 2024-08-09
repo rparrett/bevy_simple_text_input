@@ -1,7 +1,9 @@
-//! An example showing a masked input for passwords.
+//! An example showing a very basic implementation.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSettings};
+use bevy_simple_text_input::{
+    TextInputBundle, TextInputPlugin, TextInputSettings, TextInputSubmitEvent, TextInputSystem,
+};
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
 const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
@@ -12,6 +14,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(TextInputPlugin)
         .add_systems(Startup, setup)
+        .add_systems(Update, listener.after(TextInputSystem))
         .run();
 }
 
@@ -33,7 +36,8 @@ fn setup(mut commands: Commands) {
             parent.spawn((
                 NodeBundle {
                     style: Style {
-                        width: Val::Px(200.0),
+                        width: Val::Px(400.0),
+                        height: Val::Px(200.0),
                         border: UiRect::all(Val::Px(5.0)),
                         padding: UiRect::all(Val::Px(5.0)),
                         ..default()
@@ -42,18 +46,20 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::default()
-                    .with_value("password")
-                    .with_text_style(TextStyle {
-                        font_size: 40.,
-                        color: TEXT_COLOR,
-                        ..default()
-                    })
-                    .with_settings(TextInputSettings {
-                        mask_character: Some('*'),
-                        retain_on_submit: true,
-                        ..Default::default()
-                    }),
+                TextInputBundle::default().with_text_style(TextStyle {
+                    font_size: 40.,
+                    color: TEXT_COLOR,
+                    ..default()
+                }).with_settings(TextInputSettings {
+                    multiline: true,
+                    ..Default::default()
+                }).with_value("one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"),
             ));
         });
+}
+
+fn listener(mut events: EventReader<TextInputSubmitEvent>) {
+    for event in events.read() {
+        info!("{:?} submitted: {}", event.entity, event.value);
+    }
 }
