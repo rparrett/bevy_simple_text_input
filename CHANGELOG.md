@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.0
+
+* scroll into view by @robtfm in <https://github.com/rparrett/bevy_simple_text_input/pull/59>
+* Allow typing into multiple input fields at once by @davi4046 in <https://github.com/rparrett/bevy_simple_text_input/pull/58>
+* Minor code style tweaks by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/60>
+* add a few navigation shortcuts by @robtfm in <https://github.com/rparrett/bevy_simple_text_input/pull/61>
+* Make `create` system an observer by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/64>
+* Add names to created entities by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/65>
+* Dress up new docs related to text navigation by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/68>
+
 ## v0.8.0
 
 * Define `TextInputSystem` system set by @andrewhickman in <https://github.com/rparrett/bevy_simple_text_input/pull/56>
