@@ -24,7 +24,7 @@
 
 use bevy::{
     asset::load_internal_binary_asset,
-    ecs::{event::ManualEventReader, system::SystemParam},
+    ecs::{event::EventCursor, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     render::camera::RenderTarget,
@@ -339,7 +339,7 @@ impl<'w, 's> InnerText<'w, 's> {
 fn keyboard(
     key_input: Res<ButtonInput<KeyCode>>,
     input_events: Res<Events<KeyboardInput>>,
-    mut input_reader: Local<ManualEventReader<KeyboardInput>>,
+    mut input_reader: Local<EventCursor<KeyboardInput>>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
