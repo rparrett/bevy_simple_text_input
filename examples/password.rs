@@ -45,7 +45,7 @@ fn setup(mut commands: Commands) {
                 TextInputBundle::default()
                     .with_value("password")
                     .with_text_style(TextStyle {
-                        font_size: 40.,
+                        font_size: 34.,
                         color: TEXT_COLOR,
                         ..default()
                     })
