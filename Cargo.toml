@@ -14,6 +14,12 @@ exclude = [".github"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# Bevy needs either its `x11` or `wayland` features enabled to compile on linux.
+# By default, Bevy includes `x11`, so we will too.
+[features]
+default = ["x11"]
+x11 = ["bevy/x11"]
+
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"
 default-features = false
@@ -22,6 +28,7 @@ features = ["bevy_ui", "bevy_asset", "bevy_text"]
 [dev-dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"
 default-features = true
+
 
 [lints.rust]
 missing_docs = "warn"

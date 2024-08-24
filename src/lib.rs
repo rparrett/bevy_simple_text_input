@@ -6,7 +6,7 @@
 //!
 //! ```no_run
 //! use bevy::prelude::*;
-//! use bevy_simple_text_input::{TextInputBundle, TextInputPlugin};
+//! use bevy_simple_text_input::{TextInput, TextInputPlugin};
 //!
 //! fn main() {
 //!     App::new()
@@ -18,7 +18,7 @@
 //!
 //! fn setup(mut commands: Commands) {
 //!     commands.spawn(Camera2dBundle::default());
-//!     commands.spawn((NodeBundle::default(), TextInputBundle::default()));
+//!     commands.spawn((NodeBundle::default(), TextInput));
 //! }
 //! ```
 
@@ -33,7 +33,7 @@ use bevy::{
     window::{PrimaryWindow, WindowRef},
 };
 
-/// A Bevy `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
+/// A Bevy `Plugin` providing the systems and assets required to make a [`TextInput`] work.
 pub struct TextInputPlugin;
 
 /// Label for systems that update text inputs.
@@ -79,83 +79,31 @@ impl Plugin for TextInputPlugin {
 
 const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621);
 
-/// A bundle providing the additional components required for a text input.
+/// Marker component for a Text Input entity.
 ///
-/// Add this to a Bevy `NodeBundle`.
+/// Add this to a Bevy `NodeBundle`. In addition to its [required components](TextInput#impl-Component-for-TextInput), some other
+/// components may also be spawned with it: [`TextInputCursorPos`].
 ///
 /// # Example
 ///
 /// ```rust
 /// # use bevy::prelude::*;
-/// use bevy_simple_text_input::TextInputBundle;
+/// use bevy_simple_text_input::TextInput;
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((NodeBundle::default(), TextInputBundle::default()));
+///     commands.spawn((NodeBundle::default(), TextInput));
 /// }
 /// ```
-#[derive(Bundle, Default, Reflect)]
-pub struct TextInputBundle {
-    /// A component containing the text input's settings.
-    pub settings: TextInputSettings,
-    /// A component containing the Bevy `TextStyle` that will be used when creating the text input's inner Bevy `TextBundle`.
-    pub text_style: TextInputTextStyle,
-    /// A component containing a value indicating whether the text input is active or not.
-    pub inactive: TextInputInactive,
-    /// A component that manages the cursor's blinking.
-    pub cursor_timer: TextInputCursorTimer,
-    /// A component containing the current text cursor position.
-    pub cursor_pos: TextInputCursorPos,
-    /// A component containing the current value of the text input.
-    pub value: TextInputValue,
-    /// A component containing the placeholder text that is displayed when the text input is empty and not focused.
-    pub placeholder: TextInputPlaceholder,
-    /// This component's value is managed by Bevy's UI systems and enables tracking of hovers and presses.
-    pub interaction: Interaction,
-}
-
-impl TextInputBundle {
-    /// Returns this [`TextInputBundle`] with a new [`TextInputValue`] containing the provided `String`.
-    ///
-    /// This also sets [`TextInputCursorPos`] so that the cursor position is at the end of the provided `String`.
-    pub fn with_value(mut self, value: impl Into<String>) -> Self {
-        let owned = value.into();
-
-        self.cursor_pos = TextInputCursorPos(owned.len());
-        self.value = TextInputValue(owned);
-
-        self
-    }
-
-    /// Returns this [`TextInputBundle`] with a new [`TextInputPlaceholder`] containing the provided `String`.
-    pub fn with_placeholder(
-        mut self,
-        placeholder: impl Into<String>,
-        text_style: Option<TextStyle>,
-    ) -> Self {
-        self.placeholder = TextInputPlaceholder {
-            value: placeholder.into(),
-            text_style,
-        };
-        self
-    }
-
-    /// Returns this [`TextInputBundle`] with a new [`TextInputTextStyle`] containing the provided Bevy `TextStyle`.
-    pub fn with_text_style(mut self, text_style: TextStyle) -> Self {
-        self.text_style = TextInputTextStyle(text_style);
-        self
-    }
-
-    /// Returns this [`TextInputBundle`] with a new [`TextInputInactive`] containing the provided `bool`.
-    pub fn with_inactive(mut self, inactive: bool) -> Self {
-        self.inactive = TextInputInactive(inactive);
-        self
-    }
-
-    /// Returns this [`TextInputBundle`] with a new [`TextInputSettings`].
-    pub fn with_settings(mut self, settings: TextInputSettings) -> Self {
-        self.settings = settings;
-        self
-    }
-}
+#[derive(Component)]
+#[require(
+    TextInputSettings,
+    TextInputTextStyle,
+    TextInputInactive,
+    TextInputCursorTimer,
+    TextInputValue,
+    TextInputPlaceholder,
+    Interaction
+)]
+pub struct TextInput;
 
 /// The Bevy `TextStyle` that will be used when creating the text input's inner Bevy `TextBundle`.
 #[derive(Component, Default, Reflect)]
@@ -605,17 +553,27 @@ fn create(
     trigger: Trigger<OnAdd, TextInputValue>,
     mut commands: Commands,
     query: Query<(
+        Entity,
         &TextInputTextStyle,
         &TextInputValue,
-        &TextInputCursorPos,
+        Option<&TextInputCursorPos>,
         &TextInputInactive,
         &TextInputSettings,
         &TextInputPlaceholder,
     )>,
 ) {
-    if let Ok((style, text_input, cursor_pos, inactive, settings, placeholder)) =
+    if let Ok((entity, style, text_input, maybe_cursor_pos, inactive, settings, placeholder)) =
         &query.get(trigger.entity())
     {
+        let cursor_pos = match maybe_cursor_pos {
+            None => {
+                let len = text_input.0.len();
+                commands.entity(*entity).insert(TextInputCursorPos(len));
+                len
+            }
+            Some(cursor_pos) => cursor_pos.0,
+        };
+
         let mut sections = vec![
             // Pre-cursor
             TextSection {
@@ -644,7 +602,7 @@ fn create(
 
         set_section_values(
             &masked_value(&text_input.0, settings.mask_character),
-            cursor_pos.0,
+            cursor_pos,
             &mut sections,
         );
 

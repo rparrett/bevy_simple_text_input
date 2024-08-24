@@ -1,7 +1,9 @@
 //! An example showing a text input that is updated by a button.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSettings, TextInputValue};
+use bevy_simple_text_input::{
+    TextInput, TextInputPlugin, TextInputSettings, TextInputTextStyle, TextInputValue,
+};
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
 const BORDER_COLOR_INACTIVE: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -55,13 +57,13 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::default()
-                    .with_text_style(text_style.clone())
-                    .with_value("1")
-                    .with_settings(TextInputSettings {
-                        retain_on_submit: true,
-                        ..default()
-                    }),
+                TextInput,
+                TextInputTextStyle(text_style.clone()),
+                TextInputValue("1".to_string()),
+                TextInputSettings {
+                    retain_on_submit: true,
+                    ..default()
+                },
             ));
 
             parent

@@ -1,7 +1,9 @@
 //! An example showing a masked input for passwords.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSettings};
+use bevy_simple_text_input::{
+    TextInput, TextInputPlugin, TextInputSettings, TextInputTextStyle, TextInputValue,
+};
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
 const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
@@ -42,17 +44,17 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::default()
-                    .with_value("password")
-                    .with_text_style(TextStyle {
-                        font_size: 34.,
-                        color: TEXT_COLOR,
-                        ..default()
-                    })
-                    .with_settings(TextInputSettings {
-                        mask_character: Some('*'),
-                        retain_on_submit: true,
-                    }),
+                TextInput,
+                TextInputValue("password".to_string()),
+                TextInputTextStyle(TextStyle {
+                    font_size: 34.,
+                    color: TEXT_COLOR,
+                    ..default()
+                }),
+                TextInputSettings {
+                    mask_character: Some('*'),
+                    retain_on_submit: true,
+                },
             ));
         });
 }

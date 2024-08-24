@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_simple_text_input::{
-    TextInputBundle, TextInputPlugin, TextInputSubmitEvent, TextInputSystem,
+    TextInput, TextInputPlugin, TextInputSubmitEvent, TextInputSystem, TextInputTextStyle,
 };
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
@@ -45,7 +45,8 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::default().with_text_style(TextStyle {
+                TextInput,
+                TextInputTextStyle(TextStyle {
                     font_size: 34.,
                     color: TEXT_COLOR,
                     ..default()

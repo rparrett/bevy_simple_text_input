@@ -2,7 +2,8 @@
 
 use bevy::prelude::*;
 use bevy_simple_text_input::{
-    TextInputBundle, TextInputInactive, TextInputPlugin, TextInputSystem,
+    TextInput, TextInputInactive, TextInputPlaceholder, TextInputPlugin, TextInputSystem,
+    TextInputTextStyle,
 };
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
@@ -54,14 +55,17 @@ fn setup(mut commands: Commands) {
                     focus_policy: bevy::ui::FocusPolicy::Block,
                     ..default()
                 },
-                TextInputBundle::default()
-                    .with_text_style(TextStyle {
-                        font_size: 34.,
-                        color: TEXT_COLOR,
-                        ..default()
-                    })
-                    .with_placeholder("Click Me", None)
-                    .with_inactive(true),
+                TextInput,
+                TextInputTextStyle(TextStyle {
+                    font_size: 34.,
+                    color: TEXT_COLOR,
+                    ..default()
+                }),
+                TextInputPlaceholder {
+                    value: "Click Me".to_string(),
+                    text_style: None,
+                },
+                TextInputInactive(true),
             ));
         });
 }
