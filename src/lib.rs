@@ -441,7 +441,17 @@ fn keyboard(
 
             match input.logical_key {
                 Key::Space => {
-                    text_input.0.insert(pos, ' ');
+                    let mut utf8_pos = 0;
+
+                    for (i, c) in text_input.0.chars().enumerate() {
+                        if i >= pos {
+                            break;
+                        }
+
+                        utf8_pos += c.len_utf8();
+                    }
+
+                    text_input.0.insert(utf8_pos, ' ');
                     cursor_pos.0 += 1;
 
                     cursor_timer.should_reset = true;
