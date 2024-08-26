@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.9.2
+
+* Fix insertion of a space between multibyte characters by @ilotterytea in <https://github.com/rparrett/bevy_simple_text_input/pull/72>
+
 ## v0.9.1
 
 * Fix events piling up and causing duplicate key presses by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/70>
