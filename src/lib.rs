@@ -441,15 +441,15 @@ fn keyboard(
 
             match input.logical_key {
                 Key::Space => {
-                    text_input.0.insert(pos, ' ');
+                    let byte_pos = byte_pos(&text_input.0, pos);
+                    text_input.0.insert(byte_pos, ' ');
                     cursor_pos.0 += 1;
 
                     cursor_timer.should_reset = true;
                 }
                 Key::Character(ref s) => {
-                    let before = text_input.0.chars().take(cursor_pos.0);
-                    let after = text_input.0.chars().skip(cursor_pos.0);
-                    text_input.0 = before.chain(s.chars()).chain(after).collect();
+                    let byte_pos = byte_pos(&text_input.0, pos);
+                    text_input.0.insert_str(byte_pos, s.as_str());
 
                     cursor_pos.0 += 1;
 
@@ -855,6 +855,14 @@ fn remove_char_at(input: &str, index: usize) -> String {
         .enumerate()
         .filter_map(|(i, c)| if i != index { Some(c) } else { None })
         .collect()
+}
+
+fn byte_pos(input: &str, char_pos: usize) -> usize {
+    let mut char_indices = input.char_indices();
+    char_indices
+        .nth(char_pos)
+        .map(|(pos, _)| pos)
+        .unwrap_or(input.len())
 }
 
 fn masked_value(value: &str, mask: Option<char>) -> String {
