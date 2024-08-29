@@ -1,6 +1,6 @@
 //! An example showing a very basic implementation.
 
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowResolution};
 use bevy_simple_text_input::{
     TextInputBundle, TextInputPlugin, TextInputSettings, TextInputSubmitEvent, TextInputSystem,
 };
@@ -11,7 +11,13 @@ const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                resolution: WindowResolution::default().with_scale_factor_override(2.0),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
         .add_plugins(TextInputPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, listener.after(TextInputSystem))
@@ -53,7 +59,7 @@ fn setup(mut commands: Commands) {
                 }).with_settings(TextInputSettings {
                     multiline: true,
                     ..Default::default()
-                }).with_value("one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"),
+                }).with_value("one two three\n\nfour\n five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"),
             ));
         });
 }

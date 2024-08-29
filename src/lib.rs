@@ -22,17 +22,20 @@
 //! }
 //! ```
 
+mod target_camera_helper;
+
 use bevy::{
-    asset::load_internal_binary_asset,
     ecs::{event::ManualEventReader, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
-    math::FloatOrd,
     prelude::*,
-    render::camera::RenderTarget,
-    text::{BreakLineOn, TextLayoutInfo},
+    text::{
+        cosmic_text::{Action, Edit, Editor},
+        BreakLineOn, CosmicBuffer, TextPipeline,
+    },
     ui::FocusPolicy,
-    window::{PrimaryWindow, WindowRef},
 };
+use once_cell::unsync::Lazy;
+use target_camera_helper::TargetCameraHelper;
 
 /// A Bevy `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
 pub struct TextInputPlugin;
@@ -43,14 +46,6 @@ pub struct TextInputSystem;
 
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut App) {
-        // This is a special font with a zero-width `|` glyph.
-        load_internal_binary_asset!(
-            app,
-            CURSOR_HANDLE,
-            "../assets/Cursor.ttf",
-            |bytes: &[u8], _path: String| { Font::try_from_bytes(bytes.to_vec()).unwrap() }
-        );
-
         app.init_resource::<TextInputNavigationBindings>()
             .add_event::<TextInputSubmitEvent>()
             .observe(create)
@@ -60,10 +55,9 @@ impl Plugin for TextInputPlugin {
                     keyboard,
                     update_value.after(keyboard),
                     blink_cursor,
-                    show_hide_cursor,
+                    set_positions,
                     update_style,
                     show_hide_placeholder,
-                    scroll_with_cursor,
                 )
                     .in_set(TextInputSystem),
             )
@@ -75,8 +69,6 @@ impl Plugin for TextInputPlugin {
             .register_type::<TextInputValue>();
     }
 }
-
-const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621);
 
 /// A bundle providing the additional components required for a text input.
 ///
@@ -101,8 +93,6 @@ pub struct TextInputBundle {
     pub inactive: TextInputInactive,
     /// A component that manages the cursor's blinking.
     pub cursor_timer: TextInputCursorTimer,
-    /// A component containing the current text cursor position.
-    pub cursor_pos: TextInputCursorPos,
     /// A component containing the current value of the text input.
     pub value: TextInputValue,
     /// A component containing the placeholder text that is displayed when the text input is empty and not focused.
@@ -118,7 +108,6 @@ impl TextInputBundle {
     pub fn with_value(mut self, value: impl Into<String>) -> Self {
         let owned = value.into();
 
-        self.cursor_pos = TextInputCursorPos(owned.len());
         self.value = TextInputValue(owned);
 
         self
@@ -332,10 +321,6 @@ pub struct TextInputPlaceholder {
 #[derive(Component, Reflect)]
 struct TextInputPlaceholderInner;
 
-/// A component containing the current text cursor position.
-#[derive(Component, Default, Reflect)]
-pub struct TextInputCursorPos(pub usize);
-
 #[derive(Component, Reflect)]
 struct TextInputInner;
 
@@ -352,16 +337,33 @@ pub struct TextInputSubmitEvent {
 #[derive(SystemParam)]
 struct InnerText<'w, 's> {
     text_query: Query<'w, 's, &'static mut Text, With<TextInputInner>>,
-    layout_query: Query<'w, 's, &'static TextLayoutInfo, With<TextInputInner>>,
+    buffer_query: Query<'w, 's, &'static mut CosmicBuffer, With<TextInputInner>>,
     children_query: Query<'w, 's, &'static Children>,
+    cursor_query: Query<'w, 's, &'static mut Style, With<TextInputCursorDisplay>>,
 }
 impl<'w, 's> InnerText<'w, 's> {
     fn get_mut(&mut self, entity: Entity) -> Option<Mut<'_, Text>> {
         self.text_query.get_mut(self.inner_entity(entity)?).ok()
     }
 
-    fn inner_layout(&self, entity: Entity) -> Option<&TextLayoutInfo> {
-        self.layout_query.get(self.inner_entity(entity)?).ok()
+    fn set_editor_buffer(&mut self, editor: &mut Editor<'static>, entity: Entity) {
+        if let Some(buffer) = self
+            .inner_entity(entity)
+            .and_then(|inner| self.buffer_query.get_mut(inner).ok())
+        {
+            *editor.buffer_ref_mut() = buffer.0.clone().into();
+        }
+    }
+
+    fn cursor_style(&mut self, entity: Entity) -> Option<&mut Style> {
+        self.cursor_query
+            .get_mut(
+                self.children_query
+                    .iter_descendants(entity)
+                    .find(|d| self.cursor_query.get(*d).is_ok())?,
+            )
+            .ok()
+            .map(Mut::into_inner)
     }
 
     fn inner_entity(&self, entity: Entity) -> Option<Entity> {
@@ -371,6 +373,7 @@ impl<'w, 's> InnerText<'w, 's> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn keyboard(
     key_input: Res<ButtonInput<KeyCode>>,
     input_events: Res<Events<KeyboardInput>>,
@@ -380,16 +383,19 @@ fn keyboard(
         &TextInputSettings,
         &TextInputInactive,
         &mut TextInputValue,
-        &mut TextInputCursorPos,
         &mut TextInputCursorTimer,
+        &mut CosmicEditor,
     )>,
     mut submit_writer: EventWriter<TextInputSubmitEvent>,
     navigation: Res<TextInputNavigationBindings>,
-    inner_text: InnerText,
+    mut inner_text: InnerText,
+    mut text_pipeline: ResMut<TextPipeline>,
 ) {
     if input_reader.clone().read(&input_events).next().is_none() {
         return;
     }
+
+    let font_system = text_pipeline.font_system_mut();
 
     // collect actions that have all required modifiers held
     let valid_actions = navigation
@@ -400,7 +406,7 @@ fn keyboard(
         })
         .map(|(action, TextInputBinding { key, .. })| (*key, action));
 
-    for (input_entity, settings, inactive, mut text_input, mut cursor_pos, mut cursor_timer) in
+    for (input_entity, settings, inactive, mut text_input, mut cursor_timer, mut editor) in
         &mut text_input_query
     {
         if inactive.0 {
@@ -409,12 +415,17 @@ fn keyboard(
 
         let mut submitted_value = None;
 
+        // use a lazy cell to avoid initializing the editor if not required (copying the buffer is expensive)
+        let mut editor = Lazy::new(|| {
+            inner_text.set_editor_buffer(&mut editor.0, input_entity);
+            editor.0.start_change();
+            editor
+        });
+
         for input in input_reader.clone().read(&input_events) {
             if !input.state.is_pressed() {
                 continue;
             };
-
-            let pos = cursor_pos.bypass_change_detection().0;
 
             if let Some((_, action)) = valid_actions
                 .clone()
@@ -422,228 +433,37 @@ fn keyboard(
             {
                 use TextInputAction::*;
                 let mut timer_should_reset = true;
-                match action {
-                    CharLeft => cursor_pos.0 = cursor_pos.0.saturating_sub(1),
-                    CharRight => cursor_pos.0 = (cursor_pos.0 + 1).min(text_input.0.len()),
-                    TextStart => cursor_pos.0 = 0,
-                    TextEnd => cursor_pos.0 = text_input.0.len(),
-                    LineStart => {
-                        if settings.multiline {
-                            let Some(layout) = inner_text.inner_layout(input_entity) else {
-                                continue;
-                            };
-                            // find the cursor glyph pos
-                            let mut glyphs = layout
-                                .glyphs
-                                .iter()
-                                .rev()
-                                .skip_while(|g| g.section_index != 1);
-                            let Some((cursor_xy, cursor_height)) =
-                                glyphs.next().map(|g| (g.position, g.size.y))
-                            else {
-                                continue;
-                            };
-
-                            // find glyphs on the same line
-                            let glyphs = glyphs
-                                .take_while(|g| g.position.y >= cursor_xy.y - cursor_height * 0.75);
-                            // take last
-                            let glyph = glyphs.last();
-
-                            // find corresponding string index
-                            let string_ix = glyph
-                                .and_then(|glyph| {
-                                    text_input
-                                        .0
-                                        .char_indices()
-                                        .enumerate()
-                                        .find(|(_, (char_ix, _))| *char_ix == glyph.byte_index)
-                                        .map(|(string_ix, _)| string_ix)
-                                })
-                                .unwrap_or(0);
-                            cursor_pos.0 = string_ix;
-                        } else {
-                            cursor_pos.0 = 0;
-                        }
-                    }
-                    LineEnd => {
-                        if settings.multiline {
-                            let Some(layout) = inner_text.inner_layout(input_entity) else {
-                                continue;
-                            };
-                            // find the cursor glyph pos
-                            let mut glyphs =
-                                layout.glyphs.iter().skip_while(|g| g.section_index != 1);
-                            let Some((cursor_xy, cursor_height)) =
-                                glyphs.next().map(|g| (g.position, g.size.y))
-                            else {
-                                continue;
-                            };
-
-                            // find glyphs on the same line
-                            let glyphs = glyphs
-                                .take_while(|g| g.position.y <= cursor_xy.y + cursor_height * 0.75);
-                            // take last
-                            let glyph = glyphs.last();
-
-                            // find corresponding string index
-                            let string_ix = glyph
-                                .and_then(|glyph| {
-                                    text_input
-                                        .0
-                                        .split_at(pos)
-                                        .1
-                                        .char_indices()
-                                        .enumerate()
-                                        .find(|(_, (char_ix, _))| *char_ix == glyph.byte_index)
-                                        .map(|(string_ix, _)| pos + string_ix)
-                                })
-                                .unwrap_or(text_input.0.len());
-                            cursor_pos.0 = string_ix + 1;
-                        } else {
-                            cursor_pos.0 = text_input.0.len();
-                        }
-                    }
-                    WordLeft => {
-                        cursor_pos.0 = text_input
-                            .0
-                            .char_indices()
-                            .rev()
-                            .skip(text_input.0.len() - cursor_pos.0 + 1)
-                            .skip_while(|c| c.1.is_ascii_whitespace())
-                            .find(|c| c.1.is_ascii_whitespace())
-                            .map(|(ix, _)| ix + 1)
-                            .unwrap_or(0)
-                    }
-                    WordRight => {
-                        cursor_pos.0 = text_input
-                            .0
-                            .char_indices()
-                            .skip(cursor_pos.0)
-                            .skip_while(|c| !c.1.is_ascii_whitespace())
-                            .find(|c| !c.1.is_ascii_whitespace())
-                            .map(|(ix, _)| ix)
-                            .unwrap_or(text_input.0.len())
-                    }
-                    LineUp => {
-                        let Some(layout) = inner_text.inner_layout(input_entity) else {
-                            continue;
-                        };
-                        // find the cursor glyph pos
-                        let mut glyphs = layout
-                            .glyphs
-                            .iter()
-                            .rev()
-                            .skip_while(|g| g.section_index != 1);
-                        let Some((cursor_xy, cursor_height)) =
-                            glyphs.next().map(|g| (g.position, g.size.y))
-                        else {
-                            continue;
-                        };
-
-                        // find glyphs on the line above
-                        let glyphs = glyphs
-                            .skip_while(|g| g.position.y >= cursor_xy.y - cursor_height * 0.75)
-                            .take_while(|g| g.position.y >= cursor_xy.y - cursor_height * 1.75);
-                        // find nearest in x
-                        let glyph = glyphs.min_by_key(|g| {
-                            FloatOrd(f32::abs(g.position.x - g.size.x * 0.5 - cursor_xy.x))
-                        });
-
-                        // find corresponding string index
-                        let string_ix = glyph
-                            .and_then(|glyph| {
-                                text_input
-                                    .0
-                                    .char_indices()
-                                    .enumerate()
-                                    .find(|(_, (char_ix, _))| *char_ix == glyph.byte_index)
-                                    .map(|(string_ix, _)| {
-                                        // adjust for spaces which don't have glyphs
-                                        let adj =
-                                            ((glyph.position.x - glyph.size.x * 0.5 - cursor_xy.x)
-                                                / glyph.size.x)
-                                                .round()
-                                                as i32;
-                                        (string_ix as i32 - adj) as usize
-                                    })
-                            })
-                            .unwrap_or(0);
-                        cursor_pos.0 = string_ix;
-                    }
-                    LineDown => {
-                        let Some(layout) = inner_text.inner_layout(input_entity) else {
-                            continue;
-                        };
-                        // find the cursor glyph pos
-                        let mut glyphs = layout.glyphs.iter().skip_while(|g| g.section_index != 1);
-                        let Some((cursor_xy, cursor_height)) =
-                            glyphs.next().map(|g| (g.position, g.size.y))
-                        else {
-                            continue;
-                        };
-
-                        // find glyphs on the line below
-                        let glyphs = glyphs
-                            .skip_while(|g| g.position.y <= cursor_xy.y + cursor_height * 0.75)
-                            .take_while(|g| g.position.y <= cursor_xy.y + cursor_height * 1.75);
-                        // find nearest in x
-                        let glyph = glyphs.min_by_key(|g| {
-                            FloatOrd(f32::abs(g.position.x - g.size.x * 0.5 - cursor_xy.x))
-                        });
-
-                        // find corresponding string index
-                        let string_ix = glyph
-                            .and_then(|glyph| {
-                                text_input
-                                    .0
-                                    .split_at(pos)
-                                    .1
-                                    .char_indices()
-                                    .enumerate()
-                                    .find(|(_, (char_ix, _))| *char_ix == glyph.byte_index)
-                                    .map(|(string_ix, _)| {
-                                        // adjust for spaces which don't have glyphs
-                                        let adj =
-                                            ((glyph.position.x - glyph.size.x * 0.5 - cursor_xy.x)
-                                                / glyph.size.x)
-                                                .round()
-                                                as i32;
-                                        ((pos + string_ix) as i32 - adj) as usize
-                                    })
-                            })
-                            .unwrap_or(text_input.0.len());
-                        cursor_pos.0 = string_ix;
-                    }
-                    DeletePrev => {
-                        if pos > 0 {
-                            cursor_pos.0 -= 1;
-                            text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
-                        }
-                    }
-                    DeleteNext => {
-                        if pos < text_input.0.len() {
-                            text_input.0 = remove_char_at(&text_input.0, cursor_pos.0);
-
-                            // Ensure that the cursor isn't reset
-                            cursor_pos.set_changed();
-                        }
-                    }
+                let editor_action = match action {
+                    CharLeft => Some(Action::Motion(bevy::text::cosmic_text::Motion::Left)),
+                    CharRight => Some(Action::Motion(bevy::text::cosmic_text::Motion::Right)),
+                    TextStart => Some(Action::Motion(bevy::text::cosmic_text::Motion::BufferStart)),
+                    TextEnd => Some(Action::Motion(bevy::text::cosmic_text::Motion::BufferEnd)),
+                    LineStart => Some(Action::Motion(bevy::text::cosmic_text::Motion::Home)),
+                    LineEnd => Some(Action::Motion(bevy::text::cosmic_text::Motion::End)),
+                    WordLeft => Some(Action::Motion(bevy::text::cosmic_text::Motion::LeftWord)),
+                    WordRight => Some(Action::Motion(bevy::text::cosmic_text::Motion::RightWord)),
+                    LineUp => Some(Action::Motion(bevy::text::cosmic_text::Motion::Up)),
+                    LineDown => Some(Action::Motion(bevy::text::cosmic_text::Motion::Down)),
+                    DeletePrev => Some(Action::Backspace),
+                    DeleteNext => Some(Action::Delete),
                     NewLine => {
-                        if settings.multiline {
-                            text_input.0.insert(pos, '\n');
-                            cursor_pos.0 += 1;
-                        }
+                        println!("newline");
+                        editor.0.insert_string("\n", None);
+                        None
                     }
                     Submit => {
                         if settings.retain_on_submit {
                             submitted_value = Some(text_input.0.clone());
                         } else {
                             submitted_value = Some(std::mem::take(&mut text_input.0));
-                            cursor_pos.0 = 0;
                         };
                         timer_should_reset = false;
+                        Some(Action::Motion(bevy::text::cosmic_text::Motion::BufferStart))
                     }
+                };
+
+                if let Some(action) = editor_action {
+                    editor.0.action(font_system, action);
                 }
 
                 cursor_timer.should_reset |= timer_should_reset;
@@ -652,18 +472,11 @@ fn keyboard(
 
             match input.logical_key {
                 Key::Space => {
-                    text_input.0.insert(pos, ' ');
-                    cursor_pos.0 += 1;
-
+                    editor.0.insert_string(" ", None);
                     cursor_timer.should_reset = true;
                 }
                 Key::Character(ref s) => {
-                    let before = text_input.0.chars().take(cursor_pos.0);
-                    let after = text_input.0.chars().skip(cursor_pos.0);
-                    text_input.0 = before.chain(s.chars()).chain(after).collect();
-
-                    cursor_pos.0 += 1;
-
+                    editor.0.insert_string(s, None);
                     cursor_timer.should_reset = true;
                 }
                 _ => (),
@@ -676,148 +489,46 @@ fn keyboard(
                 value,
             });
         }
+
+        if let Ok(mut editor) = Lazy::into_value(editor) {
+            if let Some(_change) = editor.0.finish_change() {
+                // todo record changes for undo buffer
+                editor.0.shape_as_needed(font_system, false);
+                editor.0.with_buffer(|b| {
+                    text_input.0 = b
+                        .lines
+                        .iter()
+                        .map(|line| line.text())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                })
+            }
+            println!("edit ->`{}`", text_input.0);
+        }
     }
 }
 
 fn update_value(
     mut input_query: Query<
-        (
-            Entity,
-            Ref<TextInputValue>,
-            &TextInputSettings,
-            &mut TextInputCursorPos,
-        ),
-        Or<(Changed<TextInputValue>, Changed<TextInputCursorPos>)>,
+        (Entity, Ref<TextInputValue>, &TextInputSettings),
+        Changed<TextInputValue>,
     >,
     mut inner_text: InnerText,
 ) {
-    for (entity, text_input, settings, mut cursor_pos) in &mut input_query {
+    for (entity, text_input, settings) in &mut input_query {
         let Some(mut text) = inner_text.get_mut(entity) else {
             continue;
         };
 
-        // Reset the cursor to the end of the input when the value is changed by
-        // a user manipulating the value component.
-        if text_input.is_changed() && !cursor_pos.is_changed() {
-            cursor_pos.0 = text_input.0.chars().count();
-        }
-
-        if cursor_pos.is_changed() {
-            cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.chars().count());
-        }
-
         set_section_values(
             &masked_value(&text_input.0, settings.mask_character),
-            cursor_pos.0,
             &mut text.sections,
         );
     }
 }
 
-fn scroll_with_cursor(
-    mut inner_text_query: Query<
-        (
-            &TextLayoutInfo,
-            &mut Style,
-            &Node,
-            &Parent,
-            Option<&TargetCamera>,
-        ),
-        (With<TextInputInner>, Changed<TextLayoutInfo>),
-    >,
-    mut style_query: Query<(&Node, &mut Style), Without<TextInputInner>>,
-    camera_query: Query<&Camera>,
-    window_query: Query<&Window>,
-    primary_window_query: Query<&Window, With<PrimaryWindow>>,
-) {
-    for (layout, mut style, child_node, parent, target_camera) in inner_text_query.iter_mut() {
-        let Ok((parent_node, mut parent_style)) = style_query.get_mut(parent.get()) else {
-            continue;
-        };
-
-        match layout.glyphs.last().map(|g| g.section_index) {
-            // no text -> do nothing
-            None => return,
-            // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame to move into view
-            Some(1) => {
-                style.left = Val::Auto;
-                style.top = Val::Auto;
-                parent_style.justify_content = JustifyContent::FlexEnd;
-                parent_style.align_items = AlignItems::FlexEnd;
-                return;
-            }
-            _ => (),
-        }
-
-        // if cursor is in the middle, we use FlexStart + `top`/`left` px for consistent behaviour when typing the middle
-        let child_size = child_node.size();
-        let parent_size = parent_node.size();
-
-        let Some((cursor_pos, cursor_size)) = layout
-            .glyphs
-            .iter()
-            .find(|g| g.section_index == 1)
-            .map(|p| (p.position, p.size * Vec2::Y))
-        else {
-            continue;
-        };
-
-        // glyph positions are not adjusted for scale factor so we do that here
-        let window_ref = match target_camera {
-            Some(target) => {
-                let Ok(camera) = camera_query.get(target.0) else {
-                    continue;
-                };
-
-                match camera.target {
-                    RenderTarget::Window(window_ref) => Some(window_ref),
-                    _ => None,
-                }
-            }
-            None => Some(WindowRef::Primary),
-        };
-
-        let scale_factor = match window_ref {
-            Some(window_ref) => {
-                let window = match window_ref {
-                    WindowRef::Entity(w) => window_query.get(w).ok(),
-                    WindowRef::Primary => primary_window_query.get_single().ok(),
-                };
-
-                let Some(window) = window else {
-                    continue;
-                };
-
-                window.scale_factor()
-            }
-            None => 1.0,
-        };
-        let cursor_pos = cursor_pos / scale_factor;
-
-        let box_pos_x = match style.left {
-            Val::Px(px) => -px,
-            _ => child_size.x - parent_size.x,
-        };
-
-        let box_pos_y = match style.top {
-            Val::Px(px) => -px,
-            _ => child_size.y - parent_size.y,
-        };
-
-        let relative_pos = cursor_pos - Vec2::new(box_pos_x, box_pos_y);
-
-        if (relative_pos - cursor_size * 0.5).cmplt(Vec2::ZERO).any()
-            || (relative_pos + cursor_size * 0.5).cmpgt(parent_size).any()
-        {
-            let req_px = parent_size * 0.5 - cursor_pos;
-            let req_px = req_px.clamp(parent_size - child_size, Vec2::ZERO);
-            style.left = Val::Px(req_px.x);
-            style.top = Val::Px(req_px.y);
-            parent_style.justify_content = JustifyContent::FlexStart;
-            parent_style.align_items = AlignItems::FlexStart;
-        }
-    }
-}
+#[derive(Component)]
+struct CosmicEditor(Editor<'static>);
 
 fn create(
     trigger: Trigger<OnAdd, TextInputValue>,
@@ -825,32 +536,16 @@ fn create(
     query: Query<(
         &TextInputTextStyle,
         &TextInputValue,
-        &TextInputCursorPos,
         &TextInputInactive,
         &TextInputSettings,
         &TextInputPlaceholder,
     )>,
 ) {
-    if let Ok((style, text_input, cursor_pos, inactive, settings, placeholder)) =
-        &query.get(trigger.entity())
-    {
+    if let Ok((style, text_input, inactive, settings, placeholder)) = &query.get(trigger.entity()) {
         let mut sections = vec![
             // Pre-cursor
             TextSection {
                 style: style.0.clone(),
-                ..default()
-            },
-            // cursor
-            TextSection {
-                style: TextStyle {
-                    font: CURSOR_HANDLE,
-                    color: if inactive.0 {
-                        Color::NONE
-                    } else {
-                        style.0.color
-                    },
-                    ..style.0.clone()
-                },
                 ..default()
             },
             // Post-cursor
@@ -862,7 +557,6 @@ fn create(
 
         set_section_values(
             &masked_value(&text_input.0, settings.mask_character),
-            cursor_pos.0,
             &mut sections,
         );
 
@@ -941,39 +635,142 @@ fn create(
             ))
             .id();
 
+        let cursor = commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        display: Display::None,
+                        width: Val::Px(1f32.max(style.0.font_size * 0.05)),
+                        height: Val::Px(style.0.font_size),
+                        position_type: PositionType::Absolute,
+                        ..Default::default()
+                    },
+                    background_color: Color::WHITE.into(),
+                    ..Default::default()
+                },
+                TextInputCursorDisplay,
+            ))
+            .id();
+
         commands.entity(overflow_container).add_child(text);
+        commands.entity(trigger.entity()).push_children(&[
+            overflow_container,
+            placeholder_text,
+            cursor,
+        ]);
+
         commands
             .entity(trigger.entity())
-            .push_children(&[overflow_container, placeholder_text]);
-
-        // Prevent clicks from registering on UI elements underneath the text input.
-        commands.entity(trigger.entity()).insert(FocusPolicy::Block);
+            // Prevent clicks from registering on UI elements underneath the text input.
+            .insert(FocusPolicy::Block)
+            .insert(CosmicEditor(Editor::new(CosmicBuffer::default().0)));
     }
 }
 
+#[derive(Component)]
+struct TextInputCursorDisplay;
+
+// Sets the container position and cursor position.
 // Shows or hides the cursor based on the text input's [`TextInputInactive`] property.
-fn show_hide_cursor(
+fn set_positions(
     mut input_query: Query<
         (
             Entity,
-            &TextInputTextStyle,
             &mut TextInputCursorTimer,
             &TextInputInactive,
+            &mut CosmicEditor,
         ),
-        Changed<TextInputInactive>,
+        Or<(Changed<TextInputInactive>, Changed<CosmicEditor>)>,
     >,
     mut inner_text: InnerText,
+    mut inner_style_query: Query<
+        (&mut Style, &Node, &Parent),
+        (Without<TextInputCursorDisplay>, With<TextInputInner>),
+    >,
+    mut container_style_query: Query<
+        (&mut Style, &Node),
+        (Without<TextInputCursorDisplay>, Without<TextInputInner>),
+    >,
+    mut text_pipeline: ResMut<TextPipeline>,
+    camera_helper: TargetCameraHelper,
 ) {
-    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
-        let Some(mut text) = inner_text.get_mut(entity) else {
+    let px = |val: Val| match val {
+        Val::Px(px) => px,
+        _ => 0.0,
+    };
+
+    for (entity, mut cursor_timer, inactive, mut editor) in &mut input_query {
+        let Some(inner_entity) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        text.sections[1].style.color = if inactive.0 {
-            Color::NONE
-        } else {
-            style.0.color
+        let Ok((mut container_style, child_node, parent)) = inner_style_query.get_mut(inner_entity)
+        else {
+            continue;
         };
+
+        let Ok((mut parent_style, parent_node)) = container_style_query.get_mut(parent.get())
+        else {
+            continue;
+        };
+
+        let editor = editor.bypass_change_detection();
+
+        editor
+            .0
+            .shape_as_needed(text_pipeline.font_system_mut(), false);
+        let cursor_position = editor.0.cursor_position().unwrap_or((0, 0));
+
+        let Some(cursor_style) = inner_text.cursor_style(entity) else {
+            continue;
+        };
+
+        let Some(camera_props) = camera_helper.get_props(inner_entity) else {
+            continue;
+        };
+
+        let cursor_position =
+            IVec2::new(cursor_position.0, cursor_position.1).as_vec2() / camera_props.scale_factor;
+
+        let child_size = child_node.size();
+        let parent_size = parent_node.size();
+
+        let box_pos_x = match container_style.left {
+            Val::Px(px) => -px,
+            _ => child_size.x - parent_size.x,
+        };
+
+        let box_pos_y = match container_style.top {
+            Val::Px(px) => -px,
+            _ => child_size.y - parent_size.y,
+        };
+
+        let mut relative_cursor_position = cursor_position - Vec2::new(box_pos_x, box_pos_y);
+        let cursor_size = Vec2::new(px(cursor_style.width), px(cursor_style.height));
+
+        if relative_cursor_position.cmplt(Vec2::ZERO).any()
+            || (relative_cursor_position + cursor_size)
+                .cmpgt(parent_size)
+                .any()
+        {
+            let req_px = parent_size * 0.5 - cursor_position;
+            let req_px = req_px.clamp(parent_size - child_size, Vec2::ZERO);
+            container_style.left = Val::Px(req_px.x);
+            container_style.top = Val::Px(req_px.y);
+            parent_style.justify_content = JustifyContent::FlexStart;
+            parent_style.align_items = AlignItems::FlexStart;
+
+            relative_cursor_position = cursor_position + req_px;
+        }
+
+        cursor_style.display = if inactive.0 {
+            Display::None
+        } else {
+            Display::Flex
+        };
+
+        cursor_style.left = Val::Px(relative_cursor_position.x + px(cursor_style.height) * 0.07);
+        cursor_style.top = Val::Px(relative_cursor_position.y + px(cursor_style.height) * 0.2);
 
         cursor_timer.timer.reset();
     }
@@ -981,16 +778,11 @@ fn show_hide_cursor(
 
 // Blinks the cursor on a timer.
 fn blink_cursor(
-    mut input_query: Query<(
-        Entity,
-        &TextInputTextStyle,
-        &mut TextInputCursorTimer,
-        Ref<TextInputInactive>,
-    )>,
+    mut input_query: Query<(Entity, &mut TextInputCursorTimer, Ref<TextInputInactive>)>,
     mut inner_text: InnerText,
     time: Res<Time>,
 ) {
-    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
+    for (entity, mut cursor_timer, inactive) in &mut input_query {
         if inactive.0 {
             continue;
         }
@@ -998,9 +790,7 @@ fn blink_cursor(
         if cursor_timer.is_changed() && cursor_timer.should_reset {
             cursor_timer.timer.reset();
             cursor_timer.should_reset = false;
-            if let Some(mut text) = inner_text.get_mut(entity) {
-                text.sections[1].style.color = style.0.color;
-            }
+
             continue;
         }
 
@@ -1008,14 +798,14 @@ fn blink_cursor(
             continue;
         }
 
-        let Some(mut text) = inner_text.get_mut(entity) else {
+        let Some(style) = inner_text.cursor_style(entity) else {
             continue;
         };
 
-        if text.sections[1].style.color != Color::NONE {
-            text.sections[1].style.color = Color::NONE;
-        } else {
-            text.sections[1].style.color = style.0.color;
+        style.display = match style.display {
+            Display::Flex => Display::None,
+            Display::None => Display::Flex,
+            _ => unreachable!(),
         }
     }
 }
@@ -1040,52 +830,30 @@ fn show_hide_placeholder(
 }
 
 fn update_style(
-    mut input_query: Query<
-        (Entity, &TextInputTextStyle, &TextInputInactive),
-        Changed<TextInputTextStyle>,
-    >,
+    mut input_query: Query<(Entity, &TextInputTextStyle, &mut TextInputInactive), Changed<TextInputTextStyle>>,
     mut inner_text: InnerText,
 ) {
-    for (entity, style, inactive) in &mut input_query {
+    for (entity, style, mut inactive) in &mut input_query {
         let Some(mut text) = inner_text.get_mut(entity) else {
             continue;
         };
 
         text.sections[0].style = style.0.clone();
-        text.sections[1].style = TextStyle {
-            font: CURSOR_HANDLE,
-            color: if inactive.0 {
-                Color::NONE
-            } else {
-                style.0.color
-            },
-            ..style.0.clone()
+
+        let Some(cursor) = inner_text.cursor_style(entity) else {
+            continue;
         };
-        text.sections[2].style = style.0.clone();
+
+        cursor.width = Val::Px(1f32.max(style.0.font_size * 0.05));
+        cursor.height = Val::Px(style.0.font_size);
+
+        // mark so other systems update correctly
+        inactive.set_changed()
     }
 }
 
-fn set_section_values(value: &str, cursor_pos: usize, sections: &mut [TextSection]) {
-    let before = value.chars().take(cursor_pos).collect();
-    let after = value.chars().skip(cursor_pos).collect();
-
-    sections[0].value = before;
-    sections[2].value = after;
-
-    // If the cursor is between two characters, use the zero-width cursor.
-    if cursor_pos >= value.chars().count() {
-        sections[1].value = "}".to_string();
-    } else {
-        sections[1].value = "|".to_string();
-    }
-}
-
-fn remove_char_at(input: &str, index: usize) -> String {
-    input
-        .chars()
-        .enumerate()
-        .filter_map(|(i, c)| if i != index { Some(c) } else { None })
-        .collect()
+fn set_section_values(value: &str, sections: &mut [TextSection]) {
+    sections[0].value = value.to_owned();
 }
 
 fn masked_value(value: &str, mask: Option<char>) -> String {
