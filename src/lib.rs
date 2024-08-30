@@ -29,13 +29,16 @@ use bevy::{
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     text::{
-        cosmic_text::{Action, Cursor, Edit, Editor, Selection},
+        cosmic_text::{Action, Change, Cursor, Edit, Editor, Selection},
         BreakLineOn, CosmicBuffer, TextPipeline,
     },
     ui::FocusPolicy,
 };
 use once_cell::unsync::Lazy;
 use target_camera_helper::TargetCameraHelper;
+
+#[cfg(feature = "clipboard")]
+use copypasta::{ClipboardContext, ClipboardProvider};
 
 /// A Bevy `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
 pub struct TextInputPlugin;
@@ -137,7 +140,7 @@ impl TextInputBundle {
 
     /// Returns this [`TextInputBundle`] with a new [`TextInputSelectionStyle`] containing the provided colors.
     pub fn with_selection_style(mut self, color: Option<Color>, background: Option<Color>) -> Self {
-        self.selection_style = TextInputSelectionStyle{ color, background };
+        self.selection_style = TextInputSelectionStyle { color, background };
         self
     }
 
@@ -228,6 +231,18 @@ pub enum TextInputAction {
     Submit,
     /// add a new line
     NewLine,
+    /// select full buffer
+    SelectAll,
+    /// cut
+    Cut,
+    /// copy
+    Copy,
+    /// pasta
+    Paste,
+    /// undo
+    Undo,
+    /// redo
+    Redo,
 }
 /// A resource in which key bindings can be specified. Bindings are given as a tuple of (Primary Key, Modifiers).
 /// All modifiers must be held when the primary key is pressed to perform the action.
@@ -283,6 +298,48 @@ impl Default for TextInputNavigationBindings {
             (NewLine, TextInputBinding::new(Enter, [ShiftRight])),
             (Submit, TextInputBinding::new(Enter, [])),
             (Submit, TextInputBinding::new(NumpadEnter, [])),
+            (SelectAll, TextInputBinding::new(KeyA, [ControlLeft])),
+            (SelectAll, TextInputBinding::new(KeyA, [ControlRight])),
+            (
+                TextInputAction::Cut,
+                TextInputBinding::new(KeyX, [ControlLeft]),
+            ),
+            (
+                TextInputAction::Cut,
+                TextInputBinding::new(KeyX, [ControlRight]),
+            ),
+            (
+                TextInputAction::Copy,
+                TextInputBinding::new(KeyC, [ControlLeft]),
+            ),
+            (
+                TextInputAction::Copy,
+                TextInputBinding::new(KeyC, [ControlRight]),
+            ),
+            (
+                TextInputAction::Paste,
+                TextInputBinding::new(KeyV, [ControlLeft]),
+            ),
+            (
+                TextInputAction::Paste,
+                TextInputBinding::new(KeyV, [ControlRight]),
+            ),
+            (
+                TextInputAction::Undo,
+                TextInputBinding::new(KeyZ, [ControlLeft]),
+            ),
+            (
+                TextInputAction::Undo,
+                TextInputBinding::new(KeyZ, [ControlRight]),
+            ),
+            (
+                TextInputAction::Redo,
+                TextInputBinding::new(KeyY, [ControlLeft]),
+            ),
+            (
+                TextInputAction::Redo,
+                TextInputBinding::new(KeyY, [ControlRight]),
+            ),
         ])
     }
 }
@@ -432,6 +489,7 @@ fn keyboard(
         }
 
         let mut submitted_value = None;
+        let mut is_undo_redo = false;
 
         // use a lazy cell to avoid initializing the editor if not required (copying the buffer is expensive)
         let mut editor = Lazy::new(|| {
@@ -449,27 +507,27 @@ fn keyboard(
                 .clone()
                 .find(|(key, _)| *key == input.key_code)
             {
-                // let prev_selection = editor.0.selection_bounds();
-                if select {
-                    if editor.editor.selection() == Selection::None {
-                        let cursor = editor.editor.cursor();
-                        editor.editor.set_selection(Selection::Normal(cursor));
-                    }
+                let mut select = select;
+
+                if select && editor.editor.selection() == Selection::None {
+                    let cursor = editor.editor.cursor();
+                    editor.editor.set_selection(Selection::Normal(cursor));
                 }
 
+                use bevy::text::cosmic_text::Motion;
                 use TextInputAction::*;
                 let mut timer_should_reset = true;
                 let editor_action = match action {
-                    CharLeft => Some(Action::Motion(bevy::text::cosmic_text::Motion::Left)),
-                    CharRight => Some(Action::Motion(bevy::text::cosmic_text::Motion::Right)),
-                    TextStart => Some(Action::Motion(bevy::text::cosmic_text::Motion::BufferStart)),
-                    TextEnd => Some(Action::Motion(bevy::text::cosmic_text::Motion::BufferEnd)),
-                    LineStart => Some(Action::Motion(bevy::text::cosmic_text::Motion::Home)),
-                    LineEnd => Some(Action::Motion(bevy::text::cosmic_text::Motion::End)),
-                    WordLeft => Some(Action::Motion(bevy::text::cosmic_text::Motion::LeftWord)),
-                    WordRight => Some(Action::Motion(bevy::text::cosmic_text::Motion::RightWord)),
-                    LineUp => Some(Action::Motion(bevy::text::cosmic_text::Motion::Up)),
-                    LineDown => Some(Action::Motion(bevy::text::cosmic_text::Motion::Down)),
+                    CharLeft => Some(Action::Motion(Motion::Left)),
+                    CharRight => Some(Action::Motion(Motion::Right)),
+                    TextStart => Some(Action::Motion(Motion::BufferStart)),
+                    TextEnd => Some(Action::Motion(Motion::BufferEnd)),
+                    LineStart => Some(Action::Motion(Motion::Home)),
+                    LineEnd => Some(Action::Motion(Motion::End)),
+                    WordLeft => Some(Action::Motion(Motion::LeftWord)),
+                    WordRight => Some(Action::Motion(Motion::RightWord)),
+                    LineUp => Some(Action::Motion(Motion::Up)),
+                    LineDown => Some(Action::Motion(Motion::Down)),
                     DeletePrev => Some(Action::Backspace),
                     DeleteNext => Some(Action::Delete),
                     NewLine => {
@@ -485,7 +543,69 @@ fn keyboard(
                             submitted_value = Some(std::mem::take(&mut text_input.0));
                         };
                         timer_should_reset = false;
-                        Some(Action::Motion(bevy::text::cosmic_text::Motion::BufferStart))
+                        Some(Action::Motion(Motion::BufferStart))
+                    }
+                    SelectAll => {
+                        editor
+                            .editor
+                            .set_selection(Selection::Normal(Cursor::default()));
+                        select = true;
+                        Some(Action::Motion(Motion::BufferEnd))
+                    }
+                    Cut | Copy => {
+                        #[cfg(feature = "clipboard")]
+                        {
+                            if let Some(selection) = editor.editor.copy_selection() {
+                                if let Ok(mut ctx) = ClipboardContext::new() {
+                                    if let Err(e) = ctx.set_contents(selection) {
+                                        warn!("failed to copy : {e}");
+                                    }
+                                }
+                            }
+                        }
+
+                        if let Cut = action {
+                            editor.editor.delete_selection();
+                        } else {
+                            // avoid clearing selection on copy
+                            select = true;
+                        }
+
+                        None
+                    }
+                    Paste => {
+                        #[cfg(feature = "clipboard")]
+                        if let Ok(mut ctx) = ClipboardContext::new() {
+                            if let Ok(selection) = ctx.get_contents() {
+                                editor.editor.insert_string(&selection, None);
+                            }
+                        }
+
+                        None
+                    }
+                    Undo => {
+                        if let Some(mut undo) = editor.undo.pop() {
+                            undo.reverse();
+                            editor.editor.finish_change();
+                            editor.editor.apply_change(&undo);
+                            editor.editor.start_change();
+                            editor.redo.push(undo);
+                        }
+
+                        is_undo_redo = true;
+                        None
+                    }
+                    Redo => {
+                        if let Some(mut redo) = editor.redo.pop() {
+                            redo.reverse();
+                            editor.editor.finish_change();
+                            editor.editor.apply_change(&redo);
+                            editor.editor.start_change();
+                            editor.undo.push(redo);
+                        }
+
+                        is_undo_redo = true;
+                        None
                     }
                 };
 
@@ -522,20 +642,25 @@ fn keyboard(
         }
 
         if let Ok(mut editor) = Lazy::into_value(editor) {
-            if let Some(_change) = editor.editor.finish_change() {
-                // todo record changes for undo buffer
-                editor.editor.shape_as_needed(font_system, false);
-                editor.editor.with_buffer(|b| {
-                    text_input.0 = b
-                        .lines
-                        .iter()
-                        .map(|line| line.text())
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                })
+            if let Some(change) = editor.editor.finish_change() {
+                if !change.items.is_empty() && !is_undo_redo {
+                    editor.redo.clear();
+                    editor.undo.push(change);
+                }
             }
+            editor.editor.shape_as_needed(font_system, false);
+            editor.editor.with_buffer(|b| {
+                text_input.0 = b
+                    .lines
+                    .iter()
+                    .map(|line| line.text())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+            });
             debug!("edit -> `{}`", text_input.0);
             debug!("select -> `{:?}`", editor.editor.copy_selection());
+            debug!("undo -> {:?}", editor.undo);
+            debug!("redo -> {:?}", editor.redo);
             editor.selection_bounds = editor.editor.selection_bounds().map(|(from, to)| {
                 let index = |c: Cursor| -> usize {
                     editor.editor.with_buffer(|b| {
@@ -595,6 +720,8 @@ fn update_value(
 struct CosmicEditor {
     editor: Editor<'static>,
     selection_bounds: Option<(usize, usize)>,
+    undo: Vec<Change>,
+    redo: Vec<Change>,
 }
 
 impl CosmicEditor {
@@ -602,6 +729,8 @@ impl CosmicEditor {
         Self {
             editor: Editor::new(CosmicBuffer::default().0),
             selection_bounds: None,
+            undo: Vec::default(),
+            redo: Vec::default(),
         }
     }
 }
@@ -790,7 +919,11 @@ fn set_positions(
             &TextInputInactive,
             &mut CosmicEditor,
         ),
-        Or<(Changed<TextInputInactive>, Changed<CosmicEditor>, With<RetryPositions>)>,
+        Or<(
+            Changed<TextInputInactive>,
+            Changed<CosmicEditor>,
+            With<RetryPositions>,
+        )>,
     >,
     mut inner_text: InnerText,
     mut inner_style_query: Query<
@@ -834,7 +967,7 @@ fn set_positions(
         let editor = editor.bypass_change_detection();
 
         let cursor_position = editor.editor.cursor_position();
-        
+
         if cursor_position.is_none() {
             // sometimes it just fails ... retry next frame after copying over the original
             // (we don't have enough info here to perform the layout ourselves)
@@ -842,7 +975,7 @@ fn set_positions(
             commands.entity(entity).insert(RetryPositions);
             return;
         }
-         
+
         let cursor_position = cursor_position.unwrap_or((0, 0));
 
         let Some(cursor_style) = inner_text.cursor_style(entity) else {
@@ -966,7 +1099,10 @@ fn set_selection(
                             height: Val::Px(segment.w),
                             ..Default::default()
                         },
-                        background_color: style.background.unwrap_or(Color::srgb(0.3, 0.3, 1.0)).into(),
+                        background_color: style
+                            .background
+                            .unwrap_or(Color::srgb(0.3, 0.3, 1.0))
+                            .into(),
                         ..Default::default()
                     });
                 }
@@ -1032,7 +1168,12 @@ fn show_hide_placeholder(
 
 fn update_style(
     mut input_query: Query<
-        (Entity, &TextInputTextStyle, &mut TextInputSelectionStyle, &mut TextInputInactive),
+        (
+            Entity,
+            &TextInputTextStyle,
+            &mut TextInputSelectionStyle,
+            &mut TextInputInactive,
+        ),
         Changed<TextInputTextStyle>,
     >,
     mut inner_text: InnerText,
@@ -1043,7 +1184,10 @@ fn update_style(
         };
 
         text.sections[0].style = style.0.clone();
-        text.sections[1].style = TextStyle {color: selection_style.color.unwrap_or(style.0.color), ..style.0.clone() };
+        text.sections[1].style = TextStyle {
+            color: selection_style.color.unwrap_or(style.0.color),
+            ..style.0.clone()
+        };
         text.sections[2].style = style.0.clone();
 
         let Some(cursor) = inner_text.cursor_style(entity) else {
@@ -1066,7 +1210,7 @@ fn set_section_values(value: &str, sections: &mut [TextSection], bounds: Option<
             sections[0].value = value[0..start].to_owned();
             sections[1].value = value[start..end].to_owned();
             sections[2].value = value[end..].to_owned();
-        },
+        }
         None => {
             sections[0].value = value.to_owned();
             sections[1].value.clear();
