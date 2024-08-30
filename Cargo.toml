@@ -38,5 +38,5 @@ missing_docs = "warn"
 type_complexity = "allow"
 
 [patch.crates-io]
-# bevy = { git = "https://github.com/robtfm/bevy", branch = "release-0.14-dcl-cosmic" }
-bevy = { path = "../bevy" }
+bevy = { git = "https://github.com/robtfm/bevy", branch = "release-0.14-dcl-cosmic" }
+# bevy = { path = "../bevy" }
