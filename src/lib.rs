@@ -234,22 +234,27 @@ pub enum TextInputAction {
     /// select full buffer
     SelectAll,
     /// cut
-    Cut,
+    CutAction,
     /// copy
-    Copy,
+    CopyAction,
     /// pasta
-    Paste,
+    PasteAction,
     /// undo
-    Undo,
+    UndoAction,
     /// redo
-    Redo,
+    RedoAction,
 }
 /// A resource in which key bindings can be specified. Bindings are given as a tuple of (Primary Key, Modifiers).
 /// All modifiers must be held when the primary key is pressed to perform the action.
 /// The first matching action in the list will be performed, so a binding that is the same as another with additional
 /// modifier keys should be earlier in the vector to be applied.
 #[derive(Resource)]
-pub struct TextInputNavigationBindings(pub Vec<(TextInputAction, TextInputBinding)>);
+pub struct TextInputNavigationBindings {
+    /// list of bindings
+    pub action_bindings: Vec<(TextInputAction, TextInputBinding)>,
+    /// modifiers to imply selection action
+    pub selection_modifiers: Vec<KeyCode>,
+}
 
 /// A binding for text navigation
 pub struct TextInputBinding {
@@ -274,73 +279,46 @@ impl Default for TextInputNavigationBindings {
     fn default() -> Self {
         use KeyCode::*;
         use TextInputAction::*;
-        Self(vec![
-            // TextStart/End must be before LineStart/End as they are the same but with modifiers
-            (TextStart, TextInputBinding::new(Home, [ControlLeft])),
-            (TextStart, TextInputBinding::new(Home, [ControlRight])),
-            (TextEnd, TextInputBinding::new(End, [ControlLeft])),
-            (TextEnd, TextInputBinding::new(End, [ControlRight])),
-            (LineStart, TextInputBinding::new(Home, [])),
-            (LineEnd, TextInputBinding::new(End, [])),
-            (WordLeft, TextInputBinding::new(ArrowLeft, [ControlLeft])),
-            (WordLeft, TextInputBinding::new(ArrowLeft, [ControlRight])),
-            (WordRight, TextInputBinding::new(ArrowRight, [ControlLeft])),
-            (WordRight, TextInputBinding::new(ArrowRight, [ControlRight])),
-            (CharLeft, TextInputBinding::new(ArrowLeft, [])),
-            (CharRight, TextInputBinding::new(ArrowRight, [])),
-            (LineUp, TextInputBinding::new(ArrowUp, [])),
-            (LineDown, TextInputBinding::new(ArrowDown, [])),
-            (DeletePrev, TextInputBinding::new(Backspace, [])),
-            (DeletePrev, TextInputBinding::new(NumpadBackspace, [])),
-            (DeleteNext, TextInputBinding::new(Delete, [])),
-            // newline must be before submit as it is the same but with modifiers
-            (NewLine, TextInputBinding::new(Enter, [ShiftLeft])),
-            (NewLine, TextInputBinding::new(Enter, [ShiftRight])),
-            (Submit, TextInputBinding::new(Enter, [])),
-            (Submit, TextInputBinding::new(NumpadEnter, [])),
-            (SelectAll, TextInputBinding::new(KeyA, [ControlLeft])),
-            (SelectAll, TextInputBinding::new(KeyA, [ControlRight])),
-            (
-                TextInputAction::Cut,
-                TextInputBinding::new(KeyX, [ControlLeft]),
-            ),
-            (
-                TextInputAction::Cut,
-                TextInputBinding::new(KeyX, [ControlRight]),
-            ),
-            (
-                TextInputAction::Copy,
-                TextInputBinding::new(KeyC, [ControlLeft]),
-            ),
-            (
-                TextInputAction::Copy,
-                TextInputBinding::new(KeyC, [ControlRight]),
-            ),
-            (
-                TextInputAction::Paste,
-                TextInputBinding::new(KeyV, [ControlLeft]),
-            ),
-            (
-                TextInputAction::Paste,
-                TextInputBinding::new(KeyV, [ControlRight]),
-            ),
-            (
-                TextInputAction::Undo,
-                TextInputBinding::new(KeyZ, [ControlLeft]),
-            ),
-            (
-                TextInputAction::Undo,
-                TextInputBinding::new(KeyZ, [ControlRight]),
-            ),
-            (
-                TextInputAction::Redo,
-                TextInputBinding::new(KeyY, [ControlLeft]),
-            ),
-            (
-                TextInputAction::Redo,
-                TextInputBinding::new(KeyY, [ControlRight]),
-            ),
-        ])
+        Self {
+            action_bindings: vec![
+                // TextStart/End must be before LineStart/End as they are the same but with modifiers
+                (TextStart, TextInputBinding::new(Home, [ControlLeft])),
+                (TextStart, TextInputBinding::new(Home, [ControlRight])),
+                (TextEnd, TextInputBinding::new(End, [ControlLeft])),
+                (TextEnd, TextInputBinding::new(End, [ControlRight])),
+                (LineStart, TextInputBinding::new(Home, [])),
+                (LineEnd, TextInputBinding::new(End, [])),
+                (WordLeft, TextInputBinding::new(ArrowLeft, [ControlLeft])),
+                (WordLeft, TextInputBinding::new(ArrowLeft, [ControlRight])),
+                (WordRight, TextInputBinding::new(ArrowRight, [ControlLeft])),
+                (WordRight, TextInputBinding::new(ArrowRight, [ControlRight])),
+                (CharLeft, TextInputBinding::new(ArrowLeft, [])),
+                (CharRight, TextInputBinding::new(ArrowRight, [])),
+                (LineUp, TextInputBinding::new(ArrowUp, [])),
+                (LineDown, TextInputBinding::new(ArrowDown, [])),
+                (DeletePrev, TextInputBinding::new(Backspace, [])),
+                (DeletePrev, TextInputBinding::new(NumpadBackspace, [])),
+                (DeleteNext, TextInputBinding::new(Delete, [])),
+                // newline must be before submit as it is the same but with modifiers
+                (NewLine, TextInputBinding::new(Enter, [ShiftLeft])),
+                (NewLine, TextInputBinding::new(Enter, [ShiftRight])),
+                (Submit, TextInputBinding::new(Enter, [])),
+                (Submit, TextInputBinding::new(NumpadEnter, [])),
+                (SelectAll, TextInputBinding::new(KeyA, [ControlLeft])),
+                (SelectAll, TextInputBinding::new(KeyA, [ControlRight])),
+                (CutAction, TextInputBinding::new(KeyX, [ControlLeft])),
+                (CutAction, TextInputBinding::new(KeyX, [ControlRight])),
+                (CopyAction, TextInputBinding::new(KeyC, [ControlLeft])),
+                (CopyAction, TextInputBinding::new(KeyC, [ControlRight])),
+                (PasteAction, TextInputBinding::new(KeyV, [ControlLeft])),
+                (PasteAction, TextInputBinding::new(KeyV, [ControlRight])),
+                (UndoAction, TextInputBinding::new(KeyZ, [ControlLeft])),
+                (UndoAction, TextInputBinding::new(KeyZ, [ControlRight])),
+                (RedoAction, TextInputBinding::new(KeyY, [ControlLeft])),
+                (RedoAction, TextInputBinding::new(KeyY, [ControlRight])),
+            ],
+            selection_modifiers: vec![ShiftLeft, ShiftRight],
+        }
     }
 }
 
@@ -372,7 +350,22 @@ impl Default for TextInputNavigationBindings {
             (NewLine, TextInputBinding::new(Enter, [AltRight])),
             (Submit, TextInputBinding::new(Enter, [])),
             (Submit, TextInputBinding::new(NumpadEnter, [])),
-        ])
+            (SelectAll, TextInputBinding::new(KeyA, [SuperLeft])),
+            (SelectAll, TextInputBinding::new(KeyA, [SuperRight])),
+            (CutAction, TextInputBinding::new(KeyX, [SuperLeft])),
+            (CutAction, TextInputBinding::new(KeyX, [SuperRight])),
+            (CopyAction, TextInputBinding::new(KeyC, [SuperLeft])),
+            (CopyAction, TextInputBinding::new(KeyC, [SuperRight])),
+            (PasteAction, TextInputBinding::new(KeyV, [SuperLeft])),
+            (PasteAction, TextInputBinding::new(KeyV, [SuperRight])),
+            // redo must be before undo as it is the same but with modifiers
+            (RedoAction, TextInputBinding::new(KeyY, [SuperLeft, ShiftLeft])),
+            (RedoAction, TextInputBinding::new(KeyY, [SuperRight, ShiftLeft])),
+            (RedoAction, TextInputBinding::new(KeyY, [SuperLeft, ShiftRight])),
+            (RedoAction, TextInputBinding::new(KeyY, [SuperRight, ShiftRight])),
+            (UndoAction, TextInputBinding::new(KeyZ, [SuperLeft])),
+            (UndoAction, TextInputBinding::new(KeyZ, [SuperRight])),
+    ])
     }
 }
 
@@ -472,14 +465,14 @@ fn keyboard(
 
     // collect actions that have all required modifiers held
     let valid_actions = navigation
-        .0
+        .action_bindings
         .iter()
         .filter(|(_, TextInputBinding { modifiers, .. })| {
             modifiers.iter().all(|m| key_input.pressed(*m))
         })
         .map(|(action, TextInputBinding { key, .. })| (*key, action));
 
-    let select = key_input.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
+    let select = key_input.any_pressed(navigation.selection_modifiers.iter().copied());
 
     for (input_entity, settings, inactive, mut text_input, mut cursor_timer, mut editor) in
         &mut text_input_query
@@ -552,7 +545,7 @@ fn keyboard(
                         select = true;
                         Some(Action::Motion(Motion::BufferEnd))
                     }
-                    Cut | Copy => {
+                    CutAction | CopyAction => {
                         #[cfg(feature = "clipboard")]
                         {
                             if let Some(selection) = editor.editor.copy_selection() {
@@ -564,7 +557,7 @@ fn keyboard(
                             }
                         }
 
-                        if let Cut = action {
+                        if let CutAction = action {
                             editor.editor.delete_selection();
                         } else {
                             // avoid clearing selection on copy
@@ -573,7 +566,7 @@ fn keyboard(
 
                         None
                     }
-                    Paste => {
+                    PasteAction => {
                         #[cfg(feature = "clipboard")]
                         if let Ok(mut ctx) = ClipboardContext::new() {
                             if let Ok(selection) = ctx.get_contents() {
@@ -583,7 +576,7 @@ fn keyboard(
 
                         None
                     }
-                    Undo => {
+                    UndoAction => {
                         if let Some(mut undo) = editor.undo.pop() {
                             undo.reverse();
                             editor.editor.finish_change();
@@ -595,7 +588,7 @@ fn keyboard(
                         is_undo_redo = true;
                         None
                     }
-                    Redo => {
+                    RedoAction => {
                         if let Some(mut redo) = editor.redo.pop() {
                             redo.reverse();
                             editor.editor.finish_change();
