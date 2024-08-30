@@ -45,7 +45,7 @@ fn setup(mut commands: Commands) {
                     background_color: BACKGROUND_COLOR.into(),
                     ..default()
                 },
-                TextInputBundle::default().with_text_style(TextStyle {
+                TextInputBundle::default().with_value("abc").with_text_style(TextStyle {
                     font_size: 40.,
                     color: TEXT_COLOR,
                     ..default()

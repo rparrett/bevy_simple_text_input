@@ -6,14 +6,15 @@ use bevy_simple_text_input::{
 };
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
-const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
-const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
+const TEXT_COLOR: Color = Color::srgb(0.1, 0.1, 0.1);
+const BACKGROUND_COLOR: Color = Color::srgb(0.95, 0.95, 0.95);
+const SELECTION_COLOR: Color = Color::srgb(0.35, 0.35, 1.00);
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                resolution: WindowResolution::default().with_scale_factor_override(2.0),
+                resolution: WindowResolution::default().with_scale_factor_override(1.0),
                 ..Default::default()
             }),
             ..Default::default()
@@ -56,7 +57,7 @@ fn setup(mut commands: Commands) {
                     font_size: 40.,
                     color: TEXT_COLOR,
                     ..default()
-                }).with_settings(TextInputSettings {
+                }).with_selection_style(Some(BACKGROUND_COLOR), Some(SELECTION_COLOR)).with_settings(TextInputSettings {
                     multiline: true,
                     ..Default::default()
                 }).with_value("one two three\n\nfour\n five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"),
