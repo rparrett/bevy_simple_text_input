@@ -164,8 +164,10 @@ pub struct TextInputTextStyle(pub TextStyle);
 /// selection color and background color
 #[derive(Component, Default, Reflect)]
 pub struct TextInputSelectionStyle {
-    color: Option<Color>,
-    background: Option<Color>,
+    /// text color for selected text
+    pub color: Option<Color>,
+    /// background color for selected text
+    pub background: Option<Color>,
 }
 
 /// If true, the text input does not respond to keyboard events and the cursor is hidden.
@@ -359,13 +361,25 @@ impl Default for TextInputNavigationBindings {
             (PasteAction, TextInputBinding::new(KeyV, [SuperLeft])),
             (PasteAction, TextInputBinding::new(KeyV, [SuperRight])),
             // redo must be before undo as it is the same but with modifiers
-            (RedoAction, TextInputBinding::new(KeyY, [SuperLeft, ShiftLeft])),
-            (RedoAction, TextInputBinding::new(KeyY, [SuperRight, ShiftLeft])),
-            (RedoAction, TextInputBinding::new(KeyY, [SuperLeft, ShiftRight])),
-            (RedoAction, TextInputBinding::new(KeyY, [SuperRight, ShiftRight])),
+            (
+                RedoAction,
+                TextInputBinding::new(KeyY, [SuperLeft, ShiftLeft]),
+            ),
+            (
+                RedoAction,
+                TextInputBinding::new(KeyY, [SuperRight, ShiftLeft]),
+            ),
+            (
+                RedoAction,
+                TextInputBinding::new(KeyY, [SuperLeft, ShiftRight]),
+            ),
+            (
+                RedoAction,
+                TextInputBinding::new(KeyY, [SuperRight, ShiftRight]),
+            ),
             (UndoAction, TextInputBinding::new(KeyZ, [SuperLeft])),
             (UndoAction, TextInputBinding::new(KeyZ, [SuperRight])),
-    ])
+        ])
     }
 }
 
@@ -487,6 +501,10 @@ fn keyboard(
         // use a lazy cell to avoid initializing the editor if not required (copying the buffer is expensive)
         let mut editor = Lazy::new(|| {
             inner_text.set_editor_buffer(&mut editor.editor, input_entity);
+            // we need to reset the cursor position if it's invalid, else some actions (backspace) will panic
+            if editor.editor.cursor_position().is_none() {
+                editor.editor.set_cursor(Cursor::default());
+            }
             editor.editor.start_change();
             editor
         });
@@ -627,11 +645,13 @@ fn keyboard(
             }
         }
 
+        let mut submitted = false;
         if let Some(value) = submitted_value {
             submit_writer.send(TextInputSubmitEvent {
                 entity: input_entity,
                 value,
             });
+            submitted = true;
         }
 
         if let Ok(mut editor) = Lazy::into_value(editor) {
@@ -642,14 +662,16 @@ fn keyboard(
                 }
             }
             editor.editor.shape_as_needed(font_system, false);
-            editor.editor.with_buffer(|b| {
-                text_input.0 = b
-                    .lines
-                    .iter()
-                    .map(|line| line.text())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-            });
+            if !submitted {
+                editor.editor.with_buffer(|b| {
+                    text_input.0 = b
+                        .lines
+                        .iter()
+                        .map(|line| line.text())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                });
+            }
             debug!("edit -> `{}`", text_input.0);
             debug!("select -> `{:?}`", editor.editor.copy_selection());
             debug!("undo -> {:?}", editor.undo);
