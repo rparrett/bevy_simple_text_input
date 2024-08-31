@@ -329,57 +329,60 @@ impl Default for TextInputNavigationBindings {
     fn default() -> Self {
         use KeyCode::*;
         use TextInputAction::*;
-        Self(vec![
-            (LineStart, TextInputBinding::new(ArrowLeft, [SuperLeft])),
-            (LineStart, TextInputBinding::new(ArrowLeft, [SuperRight])),
-            (LineEnd, TextInputBinding::new(ArrowRight, [SuperLeft])),
-            (LineEnd, TextInputBinding::new(ArrowRight, [SuperRight])),
-            (WordLeft, TextInputBinding::new(ArrowLeft, [AltLeft])),
-            (WordLeft, TextInputBinding::new(ArrowLeft, [AltRight])),
-            (WordRight, TextInputBinding::new(ArrowRight, [AltLeft])),
-            (WordRight, TextInputBinding::new(ArrowRight, [AltRight])),
-            (CharLeft, TextInputBinding::new(ArrowLeft, [])),
-            (CharRight, TextInputBinding::new(ArrowRight, [])),
-            (LineUp, TextInputBinding::new(ArrowUp, [])),
-            (LineDown, TextInputBinding::new(ArrowDown, [])),
-            (DeletePrev, TextInputBinding::new(Backspace, [])),
-            (DeletePrev, TextInputBinding::new(NumpadBackspace, [])),
-            (DeleteNext, TextInputBinding::new(Delete, [])),
-            // newline must be before submit as it is the same but with modifiers
-            (NewLine, TextInputBinding::new(Enter, [ShiftLeft])),
-            (NewLine, TextInputBinding::new(Enter, [ShiftRight])),
-            (NewLine, TextInputBinding::new(Enter, [AltLeft])),
-            (NewLine, TextInputBinding::new(Enter, [AltRight])),
-            (Submit, TextInputBinding::new(Enter, [])),
-            (Submit, TextInputBinding::new(NumpadEnter, [])),
-            (SelectAll, TextInputBinding::new(KeyA, [SuperLeft])),
-            (SelectAll, TextInputBinding::new(KeyA, [SuperRight])),
-            (CutAction, TextInputBinding::new(KeyX, [SuperLeft])),
-            (CutAction, TextInputBinding::new(KeyX, [SuperRight])),
-            (CopyAction, TextInputBinding::new(KeyC, [SuperLeft])),
-            (CopyAction, TextInputBinding::new(KeyC, [SuperRight])),
-            (PasteAction, TextInputBinding::new(KeyV, [SuperLeft])),
-            (PasteAction, TextInputBinding::new(KeyV, [SuperRight])),
-            // redo must be before undo as it is the same but with modifiers
-            (
-                RedoAction,
-                TextInputBinding::new(KeyY, [SuperLeft, ShiftLeft]),
-            ),
-            (
-                RedoAction,
-                TextInputBinding::new(KeyY, [SuperRight, ShiftLeft]),
-            ),
-            (
-                RedoAction,
-                TextInputBinding::new(KeyY, [SuperLeft, ShiftRight]),
-            ),
-            (
-                RedoAction,
-                TextInputBinding::new(KeyY, [SuperRight, ShiftRight]),
-            ),
-            (UndoAction, TextInputBinding::new(KeyZ, [SuperLeft])),
-            (UndoAction, TextInputBinding::new(KeyZ, [SuperRight])),
-        ])
+        Self {
+            action_bindings: vec![
+                (LineStart, TextInputBinding::new(ArrowLeft, [SuperLeft])),
+                (LineStart, TextInputBinding::new(ArrowLeft, [SuperRight])),
+                (LineEnd, TextInputBinding::new(ArrowRight, [SuperLeft])),
+                (LineEnd, TextInputBinding::new(ArrowRight, [SuperRight])),
+                (WordLeft, TextInputBinding::new(ArrowLeft, [AltLeft])),
+                (WordLeft, TextInputBinding::new(ArrowLeft, [AltRight])),
+                (WordRight, TextInputBinding::new(ArrowRight, [AltLeft])),
+                (WordRight, TextInputBinding::new(ArrowRight, [AltRight])),
+                (CharLeft, TextInputBinding::new(ArrowLeft, [])),
+                (CharRight, TextInputBinding::new(ArrowRight, [])),
+                (LineUp, TextInputBinding::new(ArrowUp, [])),
+                (LineDown, TextInputBinding::new(ArrowDown, [])),
+                (DeletePrev, TextInputBinding::new(Backspace, [])),
+                (DeletePrev, TextInputBinding::new(NumpadBackspace, [])),
+                (DeleteNext, TextInputBinding::new(Delete, [])),
+                // newline must be before submit as it is the same but with modifiers
+                (NewLine, TextInputBinding::new(Enter, [ShiftLeft])),
+                (NewLine, TextInputBinding::new(Enter, [ShiftRight])),
+                (NewLine, TextInputBinding::new(Enter, [AltLeft])),
+                (NewLine, TextInputBinding::new(Enter, [AltRight])),
+                (Submit, TextInputBinding::new(Enter, [])),
+                (Submit, TextInputBinding::new(NumpadEnter, [])),
+                (SelectAll, TextInputBinding::new(KeyA, [SuperLeft])),
+                (SelectAll, TextInputBinding::new(KeyA, [SuperRight])),
+                (CutAction, TextInputBinding::new(KeyX, [SuperLeft])),
+                (CutAction, TextInputBinding::new(KeyX, [SuperRight])),
+                (CopyAction, TextInputBinding::new(KeyC, [SuperLeft])),
+                (CopyAction, TextInputBinding::new(KeyC, [SuperRight])),
+                (PasteAction, TextInputBinding::new(KeyV, [SuperLeft])),
+                (PasteAction, TextInputBinding::new(KeyV, [SuperRight])),
+                // redo must be before undo as it is the same but with modifiers
+                (
+                    RedoAction,
+                    TextInputBinding::new(KeyY, [SuperLeft, ShiftLeft]),
+                ),
+                (
+                    RedoAction,
+                    TextInputBinding::new(KeyY, [SuperRight, ShiftLeft]),
+                ),
+                (
+                    RedoAction,
+                    TextInputBinding::new(KeyY, [SuperLeft, ShiftRight]),
+                ),
+                (
+                    RedoAction,
+                    TextInputBinding::new(KeyY, [SuperRight, ShiftRight]),
+                ),
+                (UndoAction, TextInputBinding::new(KeyZ, [SuperLeft])),
+                (UndoAction, TextInputBinding::new(KeyZ, [SuperRight])),
+            ],
+            selection_modifiers: vec![ShiftLeft, ShiftRight],
+        }
     }
 }
 
