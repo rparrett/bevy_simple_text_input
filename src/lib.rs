@@ -936,6 +936,7 @@ fn set_positions(
         ),
         Or<(
             Changed<TextInputInactive>,
+            Changed<TextInputTextStyle>,
             Changed<CosmicEditor>,
             With<RetryPositions>,
         )>,
