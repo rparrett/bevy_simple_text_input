@@ -55,14 +55,15 @@ impl Plugin for TextInputPlugin {
             .add_systems(
                 Update,
                 (
-                    keyboard,
-                    update_value.after(keyboard),
                     blink_cursor,
                     set_positions,
                     set_selection,
-                    update_style,
                     show_hide_placeholder,
+                    update_style,
+                    keyboard,
+                    update_value,
                 )
+                    .chain()
                     .in_set(TextInputSystem),
             )
             .register_type::<TextInputSettings>()
