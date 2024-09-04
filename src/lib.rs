@@ -545,12 +545,7 @@ fn keyboard(
                     LineDown => Some(Action::Motion(Motion::Down)),
                     DeletePrev => Some(Action::Backspace),
                     DeleteNext => Some(Action::Delete),
-                    NewLine => {
-                        if settings.multiline {
-                            editor.editor.insert_string("\n", None);
-                        }
-                        None
-                    }
+                    NewLine => settings.multiline.then_some(Action::Enter),
                     Submit => {
                         if settings.retain_on_submit {
                             submitted_value = Some(text_input.0.clone());
@@ -671,9 +666,8 @@ fn keyboard(
                     text_input.0 = b
                         .lines
                         .iter()
-                        .map(|line| line.text())
-                        .collect::<Vec<_>>()
-                        .join("\n");
+                        .map(|line| format!("{}{}", line.text(), line.ending().as_str()))
+                        .collect::<Vec<_>>().join("");
                 });
             }
             debug!("edit -> `{}`", text_input.0);
@@ -985,6 +979,7 @@ fn set_positions(
         };
 
         let editor = editor.bypass_change_detection();
+        inner_text.set_editor_buffer(&mut editor.editor, entity);
 
         let cursor_position = editor.editor.cursor_position();
 
