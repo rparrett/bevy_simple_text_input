@@ -888,7 +888,7 @@ fn create(
                 NodeBundle {
                     style: Style {
                         overflow: Overflow::clip(),
-                        justify_content: JustifyContent::FlexEnd,
+                        justify_content: JustifyContent::FlexStart,
                         align_items: AlignItems::FlexEnd,
                         min_width: Val::Percent(100.),
                         max_width: Val::Percent(100.),
