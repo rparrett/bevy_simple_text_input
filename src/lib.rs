@@ -673,7 +673,7 @@ fn create(
         commands.entity(overflow_container).add_child(text);
         commands
             .entity(trigger.entity())
-            .push_children(&[overflow_container, placeholder_text]);
+            .add_children(&[overflow_container, placeholder_text]);
 
         // Prevent clicks from registering on UI elements underneath the text input.
         commands.entity(trigger.entity()).insert(FocusPolicy::Block);
