@@ -28,7 +28,7 @@ use bevy::{
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     render::camera::RenderTarget,
-    text::{BreakLineOn, TextLayoutInfo},
+    text::{LineBreak, TextLayoutInfo},
     ui::FocusPolicy,
     window::{PrimaryWindow, WindowRef},
 };
@@ -610,7 +610,7 @@ fn create(
             .spawn((
                 TextBundle {
                     text: Text {
-                        linebreak_behavior: BreakLineOn::NoWrap,
+                        linebreak: LineBreak::NoWrap,
                         sections,
                         ..default()
                     },
@@ -632,7 +632,7 @@ fn create(
             .spawn((
                 TextBundle {
                     text: Text {
-                        linebreak_behavior: BreakLineOn::NoWrap,
+                        linebreak: LineBreak::NoWrap,
                         sections: vec![TextSection {
                             value: placeholder.value.clone(),
                             style: placeholder_style,
