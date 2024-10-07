@@ -71,7 +71,9 @@ impl Plugin for TextInputPlugin {
             .register_type::<TextInputInactive>()
             .register_type::<TextInputCursorTimer>()
             .register_type::<TextInputInner>()
-            .register_type::<TextInputValue>();
+            .register_type::<TextInputValue>()
+            .register_type::<TextInputPlaceholder>()
+            .register_type::<TextInputCursorPos>();
     }
 }
 
