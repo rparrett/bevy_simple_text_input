@@ -24,7 +24,7 @@ fn main() {
 struct IncValueButton;
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     let text_style = TextStyle {
         font_size: 40.,
