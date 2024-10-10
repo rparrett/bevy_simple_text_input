@@ -83,7 +83,7 @@ fn setup(mut commands: Commands) {
                     IncValueButton,
                 ))
                 .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section("+", text_style.clone()));
+                    parent.spawn((Text::new("+"), text_style.clone()));
                 });
         });
 }

@@ -52,7 +52,7 @@ impl Plugin for TextInputPlugin {
 
         app.init_resource::<TextInputNavigationBindings>()
             .add_event::<TextInputSubmitEvent>()
-            .observe(create)
+            .add_observer(create)
             .add_systems(
                 Update,
                 (
@@ -272,15 +272,14 @@ pub struct TextInputSubmitEvent {
 /// A convenience parameter for dealing with a text input's inner Bevy `Text` entity.
 #[derive(SystemParam)]
 struct InnerText<'w, 's> {
-    text_query: Query<'w, 's, &'static mut Text, With<TextInputInner>>,
+    text_query: Query<'w, 's, (), With<TextInputInner>>,
     children_query: Query<'w, 's, &'static Children>,
 }
 impl<'w, 's> InnerText<'w, 's> {
-    fn get_mut(&mut self, entity: Entity) -> Option<Mut<'_, Text>> {
+    fn inner_entity(&self, entity: Entity) -> Option<Entity> {
         self.children_query
             .iter_descendants(entity)
             .find(|descendant_entity| self.text_query.get(*descendant_entity).is_ok())
-            .and_then(|text_entity| self.text_query.get_mut(text_entity).ok())
     }
 }
 
@@ -430,10 +429,11 @@ fn update_value(
         ),
         Or<(Changed<TextInputValue>, Changed<TextInputCursorPos>)>,
     >,
-    mut inner_text: InnerText,
+    inner_text: InnerText,
+    mut writer: UiTextWriter,
 ) {
     for (entity, text_input, settings, mut cursor_pos) in &mut input_query {
-        let Some(mut text) = inner_text.get_mut(entity) else {
+        let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
@@ -447,11 +447,14 @@ fn update_value(
             cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.chars().count());
         }
 
-        set_section_values(
+        let values = get_section_values(
             &masked_value(&text_input.0, settings.mask_character),
             cursor_pos.0,
-            &mut text.sections,
         );
+
+        *writer.text(inner, 0) = values.0;
+        *writer.text(inner, 1) = values.1;
+        *writer.text(inner, 2) = values.2;
     }
 }
 
@@ -476,7 +479,7 @@ fn scroll_with_cursor(
             continue;
         };
 
-        match layout.glyphs.last().map(|g| g.section_index) {
+        match layout.glyphs.last().map(|g| g.span_index) {
             // no text -> do nothing
             None => return,
             // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame to move into view
@@ -495,7 +498,7 @@ fn scroll_with_cursor(
         let Some(cursor_pos) = layout
             .glyphs
             .iter()
-            .find(|g| g.section_index == 1)
+            .find(|g| g.span_index == 1)
             .map(|p| p.position.x)
         else {
             continue;
@@ -574,51 +577,36 @@ fn create(
             Some(cursor_pos) => cursor_pos.0,
         };
 
-        let mut sections = vec![
-            // Pre-cursor
-            TextSection {
-                style: style.0.clone(),
-                ..default()
-            },
-            // cursor
-            TextSection {
-                style: TextStyle {
-                    font: CURSOR_HANDLE,
-                    color: if inactive.0 {
-                        Color::NONE
-                    } else {
-                        style.0.color
-                    },
-                    ..style.0.clone()
-                },
-                ..default()
-            },
-            // Post-cursor
-            TextSection {
-                style: style.0.clone(),
-                ..default()
-            },
-        ];
-
-        set_section_values(
+        let values = get_section_values(
             &masked_value(&text_input.0, settings.mask_character),
             cursor_pos,
-            &mut sections,
         );
 
         let text = commands
             .spawn((
-                TextBundle {
-                    text: Text {
-                        linebreak: LineBreak::NoWrap,
-                        sections,
-                        ..default()
-                    },
-                    ..default()
-                },
+                Text::default(),
+                TextLayout::new_with_linebreak(LineBreak::NoWrap),
                 Name::new("TextInputInner"),
                 TextInputInner,
             ))
+            .with_children(|parent| {
+                parent.spawn((TextSpan::new(values.0), style.0.clone()));
+
+                parent.spawn((
+                    TextSpan::new(values.1),
+                    TextStyle {
+                        font: CURSOR_HANDLE,
+                        color: if inactive.0 {
+                            Color::NONE
+                        } else {
+                            style.0.color
+                        },
+                        ..style.0.clone()
+                    },
+                ));
+
+                parent.spawn((TextSpan::new(values.2), style.0.clone()));
+            })
             .id();
 
         let placeholder_style = placeholder
@@ -630,28 +618,20 @@ fn create(
 
         let placeholder_text = commands
             .spawn((
-                TextBundle {
-                    text: Text {
-                        linebreak: LineBreak::NoWrap,
-                        sections: vec![TextSection {
-                            value: placeholder.value.clone(),
-                            style: placeholder_style,
-                        }],
-                        ..default()
-                    },
-                    visibility: if placeholder_visible {
-                        Visibility::Inherited
-                    } else {
-                        Visibility::Hidden
-                    },
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        ..default()
-                    },
-                    ..default()
-                },
+                Text::new(&placeholder.value),
+                TextLayout::new_with_linebreak(LineBreak::NoWrap),
+                placeholder_style,
                 Name::new("TextInputPlaceholderInner"),
                 TextInputPlaceholderInner,
+                if placeholder_visible {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                },
+                Style {
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
             ))
             .id();
 
@@ -691,14 +671,15 @@ fn show_hide_cursor(
         ),
         Changed<TextInputInactive>,
     >,
-    mut inner_text: InnerText,
+    inner_text: InnerText,
+    mut writer: UiTextWriter,
 ) {
     for (entity, style, mut cursor_timer, inactive) in &mut input_query {
-        let Some(mut text) = inner_text.get_mut(entity) else {
+        let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        text.sections[1].style.color = if inactive.0 {
+        writer.style(inner, 1).color = if inactive.0 {
             Color::NONE
         } else {
             style.0.color
@@ -716,7 +697,8 @@ fn blink_cursor(
         &mut TextInputCursorTimer,
         Ref<TextInputInactive>,
     )>,
-    mut inner_text: InnerText,
+    inner_text: InnerText,
+    mut writer: UiTextWriter,
     time: Res<Time>,
 ) {
     for (entity, style, mut cursor_timer, inactive) in &mut input_query {
@@ -727,9 +709,11 @@ fn blink_cursor(
         if cursor_timer.is_changed() && cursor_timer.should_reset {
             cursor_timer.timer.reset();
             cursor_timer.should_reset = false;
-            if let Some(mut text) = inner_text.get_mut(entity) {
-                text.sections[1].style.color = style.0.color;
-            }
+
+            if let Some(inner) = inner_text.inner_entity(entity) {
+                writer.style(inner, 1).color = style.0.color;
+            };
+
             continue;
         }
 
@@ -737,14 +721,14 @@ fn blink_cursor(
             continue;
         }
 
-        let Some(mut text) = inner_text.get_mut(entity) else {
+        let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        if text.sections[1].style.color != Color::NONE {
-            text.sections[1].style.color = Color::NONE;
+        if writer.style(inner, 1).color != Color::NONE {
+            writer.style(inner, 1).color = Color::NONE;
         } else {
-            text.sections[1].style.color = style.0.color;
+            writer.style(inner, 1).color = style.0.color;
         }
     }
 }
@@ -773,15 +757,16 @@ fn update_style(
         (Entity, &TextInputTextStyle, &TextInputInactive),
         Changed<TextInputTextStyle>,
     >,
-    mut inner_text: InnerText,
+    inner_text: InnerText,
+    mut writer: UiTextWriter,
 ) {
     for (entity, style, inactive) in &mut input_query {
-        let Some(mut text) = inner_text.get_mut(entity) else {
+        let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        text.sections[0].style = style.0.clone();
-        text.sections[1].style = TextStyle {
+        *writer.style(inner, 0) = style.0.clone();
+        *writer.style(inner, 1) = TextStyle {
             font: CURSOR_HANDLE,
             color: if inactive.0 {
                 Color::NONE
@@ -790,23 +775,22 @@ fn update_style(
             },
             ..style.0.clone()
         };
-        text.sections[2].style = style.0.clone();
+        *writer.style(inner, 2) = style.0.clone();
     }
 }
 
-fn set_section_values(value: &str, cursor_pos: usize, sections: &mut [TextSection]) {
+fn get_section_values(value: &str, cursor_pos: usize) -> (String, String, String) {
     let before = value.chars().take(cursor_pos).collect();
     let after = value.chars().skip(cursor_pos).collect();
 
-    sections[0].value = before;
-    sections[2].value = after;
-
     // If the cursor is between two characters, use the zero-width cursor.
-    if cursor_pos >= value.chars().count() {
-        sections[1].value = "}".to_string();
+    let cursor = if cursor_pos >= value.chars().count() {
+        "}".to_string()
     } else {
-        sections[1].value = "|".to_string();
-    }
+        "|".to_string()
+    };
+
+    (before, cursor, after)
 }
 
 fn remove_char_at(input: &str, index: usize) -> String {
