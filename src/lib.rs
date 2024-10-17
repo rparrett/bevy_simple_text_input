@@ -61,13 +61,15 @@ impl Plugin for TextInputPlugin {
                     blink_cursor,
                     show_hide_cursor,
                     update_style,
+                    update_color,
                     show_hide_placeholder,
                     scroll_with_cursor,
                 )
                     .in_set(TextInputSystem),
             )
             .register_type::<TextInputSettings>()
-            .register_type::<TextInputTextStyle>()
+            .register_type::<TextInputTextFont>()
+            .register_type::<TextInputTextColor>()
             .register_type::<TextInputInactive>()
             .register_type::<TextInputCursorTimer>()
             .register_type::<TextInputInner>()
@@ -96,7 +98,8 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 #[derive(Component)]
 #[require(
     TextInputSettings,
-    TextInputTextStyle,
+    TextInputTextFont,
+    TextInputTextColor,
     TextInputInactive,
     TextInputCursorTimer,
     TextInputValue,
@@ -105,9 +108,13 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 )]
 pub struct TextInput;
 
-/// The Bevy `TextStyle` that will be used when creating the text input's inner Bevy `TextBundle`.
+/// The Bevy `TextColor` that will be used when creating the text input's inner Bevy `TextBundle`.
 #[derive(Component, Default, Reflect)]
-pub struct TextInputTextStyle(pub TextStyle);
+pub struct TextInputTextFont(pub TextFont);
+
+/// The Bevy `TextColor` that will be used when creating the text input's inner Bevy `TextBundle`.
+#[derive(Component, Default, Reflect)]
+pub struct TextInputTextColor(pub TextColor);
 
 /// If true, the text input does not respond to keyboard events and the cursor is hidden.
 #[derive(Component, Default, Reflect)]
@@ -244,10 +251,14 @@ pub struct TextInputValue(pub String);
 pub struct TextInputPlaceholder {
     /// The placeholder text.
     pub value: String,
+    /// The `TextFont` to use when rendering the placeholder text.
+    ///
+    /// If `None`, the text input font will be used.
+    pub text_font: Option<TextFont>,
     /// The style to use when rendering the placeholder text.
     ///
-    /// If `None`, the text input style will be used with alpha value of `0.25`.
-    pub text_style: Option<TextStyle>,
+    /// If `None`, the text input color will be used with alpha value of `0.25`.
+    pub text_color: Option<TextColor>,
 }
 
 #[derive(Component, Reflect)]
@@ -430,7 +441,7 @@ fn update_value(
         Or<(Changed<TextInputValue>, Changed<TextInputCursorPos>)>,
     >,
     inner_text: InnerText,
-    mut writer: UiTextWriter,
+    mut writer: TextUiWriter,
 ) {
     for (entity, text_input, settings, mut cursor_pos) in &mut input_query {
         let Some(inner) = inner_text.inner_entity(entity) else {
@@ -557,7 +568,8 @@ fn create(
     mut commands: Commands,
     query: Query<(
         Entity,
-        &TextInputTextStyle,
+        &TextInputTextFont,
+        &TextInputTextColor,
         &TextInputValue,
         Option<&TextInputCursorPos>,
         &TextInputInactive,
@@ -565,8 +577,16 @@ fn create(
         &TextInputPlaceholder,
     )>,
 ) {
-    if let Ok((entity, style, text_input, maybe_cursor_pos, inactive, settings, placeholder)) =
-        &query.get(trigger.entity())
+    if let Ok((
+        entity,
+        font,
+        color,
+        text_input,
+        maybe_cursor_pos,
+        inactive,
+        settings,
+        placeholder,
+    )) = &query.get(trigger.entity())
     {
         let cursor_pos = match maybe_cursor_pos {
             None => {
@@ -590,29 +610,36 @@ fn create(
                 TextInputInner,
             ))
             .with_children(|parent| {
-                parent.spawn((TextSpan::new(values.0), style.0.clone()));
+                // Pre-cursor
+                parent.spawn((TextSpan::new(values.0), font.0.clone()));
 
+                // Cursor
                 parent.spawn((
                     TextSpan::new(values.1),
-                    TextStyle {
+                    TextFont {
                         font: CURSOR_HANDLE,
-                        color: if inactive.0 {
-                            Color::NONE
-                        } else {
-                            style.0.color
-                        },
-                        ..style.0.clone()
+                        ..font.0.clone()
+                    },
+                    if inactive.0 {
+                        TextColor(Color::NONE)
+                    } else {
+                        color.0
                     },
                 ));
 
-                parent.spawn((TextSpan::new(values.2), style.0.clone()));
+                // Post-cursor
+                parent.spawn((TextSpan::new(values.2), font.0.clone()));
             })
             .id();
 
-        let placeholder_style = placeholder
-            .text_style
+        let placeholder_font = placeholder
+            .text_font
             .clone()
-            .unwrap_or_else(|| placeholder_style(&style.0));
+            .unwrap_or_else(|| font.0.clone());
+
+        let placeholder_color = placeholder
+            .text_color
+            .unwrap_or_else(|| placeholder_color(&color.0));
 
         let placeholder_visible = inactive.0 && text_input.0.is_empty();
 
@@ -620,7 +647,8 @@ fn create(
             .spawn((
                 Text::new(&placeholder.value),
                 TextLayout::new_with_linebreak(LineBreak::NoWrap),
-                placeholder_style,
+                placeholder_font,
+                placeholder_color,
                 Name::new("TextInputPlaceholderInner"),
                 TextInputPlaceholderInner,
                 if placeholder_visible {
@@ -665,24 +693,24 @@ fn show_hide_cursor(
     mut input_query: Query<
         (
             Entity,
-            &TextInputTextStyle,
+            &TextInputTextColor,
             &mut TextInputCursorTimer,
             &TextInputInactive,
         ),
         Changed<TextInputInactive>,
     >,
     inner_text: InnerText,
-    mut writer: UiTextWriter,
+    mut writer: TextUiWriter,
 ) {
-    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
+    for (entity, color, mut cursor_timer, inactive) in &mut input_query {
         let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        writer.style(inner, 1).color = if inactive.0 {
-            Color::NONE
+        *writer.color(inner, 1) = if inactive.0 {
+            TextColor(Color::NONE)
         } else {
-            style.0.color
+            color.0
         };
 
         cursor_timer.timer.reset();
@@ -693,15 +721,15 @@ fn show_hide_cursor(
 fn blink_cursor(
     mut input_query: Query<(
         Entity,
-        &TextInputTextStyle,
+        &TextInputTextColor,
         &mut TextInputCursorTimer,
         Ref<TextInputInactive>,
     )>,
     inner_text: InnerText,
-    mut writer: UiTextWriter,
+    mut writer: TextUiWriter,
     time: Res<Time>,
 ) {
-    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
+    for (entity, color, mut cursor_timer, inactive) in &mut input_query {
         if inactive.0 {
             continue;
         }
@@ -711,7 +739,7 @@ fn blink_cursor(
             cursor_timer.should_reset = false;
 
             if let Some(inner) = inner_text.inner_entity(entity) {
-                writer.style(inner, 1).color = style.0.color;
+                *writer.color(inner, 1) = color.0;
             };
 
             continue;
@@ -725,10 +753,10 @@ fn blink_cursor(
             continue;
         };
 
-        if writer.style(inner, 1).color != Color::NONE {
-            writer.style(inner, 1).color = Color::NONE;
+        if writer.color(inner, 1).0 != Color::NONE {
+            *writer.color(inner, 1) = TextColor(Color::NONE);
         } else {
-            writer.style(inner, 1).color = style.0.color;
+            *writer.color(inner, 1) = color.0;
         }
     }
 }
@@ -753,29 +781,43 @@ fn show_hide_placeholder(
 }
 
 fn update_style(
-    mut input_query: Query<
-        (Entity, &TextInputTextStyle, &TextInputInactive),
-        Changed<TextInputTextStyle>,
-    >,
+    mut input_query: Query<(Entity, &TextInputTextFont), Changed<TextInputTextFont>>,
     inner_text: InnerText,
-    mut writer: UiTextWriter,
+    mut writer: TextUiWriter,
 ) {
-    for (entity, style, inactive) in &mut input_query {
+    for (entity, font) in &mut input_query {
         let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        *writer.style(inner, 0) = style.0.clone();
-        *writer.style(inner, 1) = TextStyle {
+        *writer.font(inner, 0) = font.0.clone();
+        *writer.font(inner, 1) = TextFont {
             font: CURSOR_HANDLE,
-            color: if inactive.0 {
-                Color::NONE
-            } else {
-                style.0.color
-            },
-            ..style.0.clone()
+            ..font.0.clone()
         };
-        *writer.style(inner, 2) = style.0.clone();
+        *writer.font(inner, 2) = font.0.clone();
+    }
+}
+
+fn update_color(
+    mut input_query: Query<
+        (Entity, &TextInputTextColor, &TextInputInactive),
+        Changed<TextInputTextColor>,
+    >,
+    inner_text: InnerText,
+    mut writer: TextUiWriter,
+) {
+    for (entity, color, inactive) in &mut input_query {
+        let Some(inner) = inner_text.inner_entity(entity) else {
+            continue;
+        };
+        *writer.color(inner, 0) = color.0;
+        *writer.color(inner, 1) = if inactive.0 {
+            TextColor(Color::NONE)
+        } else {
+            color.0
+        };
+        *writer.color(inner, 2) = color.0;
     }
 }
 
@@ -816,10 +858,6 @@ fn masked_value(value: &str, mask: Option<char>) -> String {
     )
 }
 
-fn placeholder_style(style: &TextStyle) -> TextStyle {
-    let color = style.color.with_alpha(style.color.alpha() * 0.25);
-    TextStyle {
-        color,
-        ..style.clone()
-    }
+fn placeholder_color(color: &TextColor) -> TextColor {
+    TextColor(color.with_alpha(color.alpha() * 0.25))
 }

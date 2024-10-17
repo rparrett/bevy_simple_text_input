@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_simple_text_input::{
     TextInput, TextInputInactive, TextInputPlaceholder, TextInputPlugin, TextInputSystem,
-    TextInputTextStyle,
+    TextInputTextColor, TextInputTextFont,
 };
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
@@ -56,14 +56,14 @@ fn setup(mut commands: Commands) {
                     ..default()
                 },
                 TextInput,
-                TextInputTextStyle(TextStyle {
+                TextInputTextFont(TextFont {
                     font_size: 34.,
-                    color: TEXT_COLOR,
                     ..default()
                 }),
+                TextInputTextColor(TextColor(TEXT_COLOR)),
                 TextInputPlaceholder {
                     value: "Click Me".to_string(),
-                    text_style: None,
+                    ..default()
                 },
                 TextInputInactive(true),
             ));

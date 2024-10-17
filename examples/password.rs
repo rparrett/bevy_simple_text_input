@@ -2,7 +2,8 @@
 
 use bevy::prelude::*;
 use bevy_simple_text_input::{
-    TextInput, TextInputPlugin, TextInputSettings, TextInputTextStyle, TextInputValue,
+    TextInput, TextInputPlugin, TextInputSettings, TextInputTextColor, TextInputTextFont,
+    TextInputValue,
 };
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
@@ -46,11 +47,11 @@ fn setup(mut commands: Commands) {
                 },
                 TextInput,
                 TextInputValue("password".to_string()),
-                TextInputTextStyle(TextStyle {
+                TextInputTextFont(TextFont {
                     font_size: 34.,
-                    color: TEXT_COLOR,
                     ..default()
                 }),
+                TextInputTextColor(TextColor(TEXT_COLOR)),
                 TextInputSettings {
                     mask_character: Some('*'),
                     retain_on_submit: true,
