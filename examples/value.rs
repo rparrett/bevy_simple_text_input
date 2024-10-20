@@ -34,30 +34,24 @@ fn setup(mut commands: Commands) {
     let text_color = TextColor(TEXT_COLOR);
 
     commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                column_gap: Val::Px(10.),
-                ..default()
-            },
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            column_gap: Val::Px(10.),
             ..default()
         })
         .with_children(|parent| {
             parent.spawn((
-                NodeBundle {
-                    style: Style {
-                        width: Val::Px(200.0),
-                        border: UiRect::all(Val::Px(5.0)),
-                        padding: UiRect::all(Val::Px(5.0)),
-                        ..default()
-                    },
-                    border_color: BorderColor(BORDER_COLOR_ACTIVE),
-                    background_color: BACKGROUND_COLOR.into(),
+                Node {
+                    width: Val::Px(200.0),
+                    border: UiRect::all(Val::Px(5.0)),
+                    padding: UiRect::all(Val::Px(5.0)),
                     ..default()
                 },
+                BorderColor(BORDER_COLOR_ACTIVE),
+                BackgroundColor(BACKGROUND_COLOR),
                 TextInput,
                 TextInputTextFont(text_font.clone()),
                 TextInputTextColor(text_color),
@@ -70,18 +64,16 @@ fn setup(mut commands: Commands) {
 
             parent
                 .spawn((
-                    ButtonBundle {
-                        style: Style {
-                            width: Val::Px(50.),
-                            border: UiRect::all(Val::Px(5.0)),
-                            padding: UiRect::all(Val::Px(5.0)),
-                            justify_content: JustifyContent::Center,
-                            ..default()
-                        },
-                        border_color: BorderColor(BORDER_COLOR_INACTIVE),
-                        background_color: BACKGROUND_COLOR.into(),
+                    Button,
+                    Node {
+                        width: Val::Px(50.),
+                        border: UiRect::all(Val::Px(5.0)),
+                        padding: UiRect::all(Val::Px(5.0)),
+                        justify_content: JustifyContent::Center,
                         ..default()
                     },
+                    BorderColor(BORDER_COLOR_INACTIVE),
+                    BackgroundColor(BACKGROUND_COLOR),
                     IncValueButton,
                 ))
                 .with_children(|parent| {

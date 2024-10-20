@@ -473,14 +473,14 @@ fn scroll_with_cursor(
     mut inner_text_query: Query<
         (
             &TextLayoutInfo,
-            &mut Style,
-            &Node,
+            &mut Node,
+            &ComputedNode,
             &Parent,
             Option<&TargetCamera>,
         ),
         (With<TextInputInner>, Changed<TextLayoutInfo>),
     >,
-    mut style_query: Query<(&Node, &mut Style), Without<TextInputInner>>,
+    mut style_query: Query<(&ComputedNode, &mut Node), Without<TextInputInner>>,
     camera_query: Query<&Camera>,
     window_query: Query<&Window>,
     primary_window_query: Query<&Window, With<PrimaryWindow>>,
@@ -656,7 +656,7 @@ fn create(
                 } else {
                     Visibility::Hidden
                 },
-                Style {
+                Node {
                     position_type: PositionType::Absolute,
                     ..default()
                 },
@@ -665,13 +665,10 @@ fn create(
 
         let overflow_container = commands
             .spawn((
-                NodeBundle {
-                    style: Style {
-                        overflow: Overflow::clip(),
-                        justify_content: JustifyContent::FlexEnd,
-                        max_width: Val::Percent(100.),
-                        ..default()
-                    },
+                Node {
+                    overflow: Overflow::clip(),
+                    justify_content: JustifyContent::FlexEnd,
+                    max_width: Val::Percent(100.),
                     ..default()
                 },
                 Name::new("TextInputOverflowContainer"),
