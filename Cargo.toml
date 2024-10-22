@@ -21,12 +21,12 @@ default = ["x11"]
 x11 = ["bevy/x11"]
 
 [dependencies.bevy]
-git = "https://github.com/bevyengine/bevy"
+version = "0.15.0-rc.1"
 default-features = false
 features = ["bevy_ui", "bevy_asset", "bevy_text"]
 
 [dev-dependencies.bevy]
-git = "https://github.com/bevyengine/bevy"
+version = "0.15.0-rc.1"
 default-features = true
 
 
