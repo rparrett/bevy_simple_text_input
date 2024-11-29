@@ -1,8 +1,9 @@
 //! An example showing a more advanced implementation with focus.
 
-use bevy::prelude::*;
+use bevy::{prelude::*, ui::FocusPolicy};
 use bevy_simple_text_input::{
-    TextInputBundle, TextInputInactive, TextInputPlugin, TextInputSystem,
+    TextInput, TextInputInactive, TextInputPlaceholder, TextInputPlugin, TextInputSystem,
+    TextInputTextColor, TextInputTextFont,
 };
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
@@ -20,18 +21,15 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     commands
         .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             // Make this container node bundle to be Interactive so that clicking on it removes
@@ -40,28 +38,28 @@ fn setup(mut commands: Commands) {
         ))
         .with_children(|parent| {
             parent.spawn((
-                NodeBundle {
-                    style: Style {
-                        width: Val::Px(200.0),
-                        border: UiRect::all(Val::Px(5.0)),
-                        padding: UiRect::all(Val::Px(5.0)),
-                        ..default()
-                    },
-                    border_color: BORDER_COLOR_INACTIVE.into(),
-                    background_color: BACKGROUND_COLOR.into(),
-                    // Prevent clicks on the input from also bubbling down to the container
-                    // behind it
-                    focus_policy: bevy::ui::FocusPolicy::Block,
+                Node {
+                    width: Val::Px(200.0),
+                    border: UiRect::all(Val::Px(5.0)),
+                    padding: UiRect::all(Val::Px(5.0)),
                     ..default()
                 },
-                TextInputBundle::default()
-                    .with_text_style(TextStyle {
-                        font_size: 40.,
-                        color: TEXT_COLOR,
-                        ..default()
-                    })
-                    .with_placeholder("Click Me", None)
-                    .with_inactive(true),
+                BorderColor(BORDER_COLOR_INACTIVE),
+                BackgroundColor(BACKGROUND_COLOR),
+                // Prevent clicks on the input from also bubbling down to the container
+                // behind it
+                FocusPolicy::Block,
+                TextInput,
+                TextInputTextFont(TextFont {
+                    font_size: 34.,
+                    ..default()
+                }),
+                TextInputTextColor(TextColor(TEXT_COLOR)),
+                TextInputPlaceholder {
+                    value: "Click Me".to_string(),
+                    ..default()
+                },
+                TextInputInactive(true),
             ));
         });
 }

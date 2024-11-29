@@ -1,7 +1,10 @@
 //! An example showing a text input that is updated by a button.
 
 use bevy::prelude::*;
-use bevy_simple_text_input::{TextInputBundle, TextInputPlugin, TextInputSettings, TextInputValue};
+use bevy_simple_text_input::{
+    TextInput, TextInputPlugin, TextInputSettings, TextInputTextColor, TextInputTextFont,
+    TextInputValue,
+};
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
 const BORDER_COLOR_INACTIVE: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -22,66 +25,59 @@ fn main() {
 struct IncValueButton;
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
-    let text_style = TextStyle {
+    let text_font = TextFont {
         font_size: 40.,
-        color: TEXT_COLOR,
         ..default()
     };
+    let text_color = TextColor(TEXT_COLOR);
 
     commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                column_gap: Val::Px(10.),
-                ..default()
-            },
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            column_gap: Val::Px(10.),
             ..default()
         })
         .with_children(|parent| {
             parent.spawn((
-                NodeBundle {
-                    style: Style {
-                        width: Val::Px(200.0),
-                        border: UiRect::all(Val::Px(5.0)),
-                        padding: UiRect::all(Val::Px(5.0)),
-                        ..default()
-                    },
-                    border_color: BorderColor(BORDER_COLOR_ACTIVE),
-                    background_color: BACKGROUND_COLOR.into(),
+                Node {
+                    width: Val::Px(200.0),
+                    border: UiRect::all(Val::Px(5.0)),
+                    padding: UiRect::all(Val::Px(5.0)),
                     ..default()
                 },
-                TextInputBundle::default()
-                    .with_text_style(text_style.clone())
-                    .with_value("1")
-                    .with_settings(TextInputSettings {
-                        retain_on_submit: true,
-                        ..default()
-                    }),
+                BorderColor(BORDER_COLOR_ACTIVE),
+                BackgroundColor(BACKGROUND_COLOR),
+                TextInput,
+                TextInputTextFont(text_font.clone()),
+                TextInputTextColor(text_color),
+                TextInputValue("1".to_string()),
+                TextInputSettings {
+                    retain_on_submit: true,
+                    ..default()
+                },
             ));
 
             parent
                 .spawn((
-                    ButtonBundle {
-                        style: Style {
-                            width: Val::Px(50.),
-                            border: UiRect::all(Val::Px(5.0)),
-                            padding: UiRect::all(Val::Px(5.0)),
-                            justify_content: JustifyContent::Center,
-                            ..default()
-                        },
-                        border_color: BorderColor(BORDER_COLOR_INACTIVE),
-                        background_color: BACKGROUND_COLOR.into(),
+                    Button,
+                    Node {
+                        width: Val::Px(50.),
+                        border: UiRect::all(Val::Px(5.0)),
+                        padding: UiRect::all(Val::Px(5.0)),
+                        justify_content: JustifyContent::Center,
                         ..default()
                     },
+                    BorderColor(BORDER_COLOR_INACTIVE),
+                    BackgroundColor(BACKGROUND_COLOR),
                     IncValueButton,
                 ))
                 .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section("+", text_style.clone()));
+                    parent.spawn((Text::new("+"), text_font, text_color));
                 });
         });
 }

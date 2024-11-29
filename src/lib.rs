@@ -6,7 +6,7 @@
 //!
 //! ```no_run
 //! use bevy::prelude::*;
-//! use bevy_simple_text_input::{TextInputBundle, TextInputPlugin};
+//! use bevy_simple_text_input::{TextInput, TextInputPlugin};
 //!
 //! fn main() {
 //!     App::new()
@@ -17,23 +17,23 @@
 //! }
 //!
 //! fn setup(mut commands: Commands) {
-//!     commands.spawn(Camera2dBundle::default());
-//!     commands.spawn((NodeBundle::default(), TextInputBundle::default()));
+//!     commands.spawn(Camera2d);
+//!     commands.spawn((NodeBundle::default(), TextInput));
 //! }
 //! ```
 
 use bevy::{
     asset::load_internal_binary_asset,
-    ecs::{event::ManualEventReader, system::SystemParam},
+    ecs::{event::EventCursor, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     render::camera::RenderTarget,
-    text::{BreakLineOn, TextLayoutInfo},
+    text::{LineBreak, TextLayoutInfo},
     ui::FocusPolicy,
     window::{PrimaryWindow, WindowRef},
 };
 
-/// A Bevy `Plugin` providing the systems and assets required to make a [`TextInputBundle`] work.
+/// A Bevy `Plugin` providing the systems and assets required to make a [`TextInput`] work.
 pub struct TextInputPlugin;
 
 /// Label for systems that update text inputs.
@@ -52,7 +52,7 @@ impl Plugin for TextInputPlugin {
 
         app.init_resource::<TextInputNavigationBindings>()
             .add_event::<TextInputSubmitEvent>()
-            .observe(create)
+            .add_observer(create)
             .add_systems(
                 Update,
                 (
@@ -61,13 +61,15 @@ impl Plugin for TextInputPlugin {
                     blink_cursor,
                     show_hide_cursor,
                     update_style,
+                    update_color,
                     show_hide_placeholder,
                     scroll_with_cursor,
                 )
                     .in_set(TextInputSystem),
             )
             .register_type::<TextInputSettings>()
-            .register_type::<TextInputTextStyle>()
+            .register_type::<TextInputTextFont>()
+            .register_type::<TextInputTextColor>()
             .register_type::<TextInputInactive>()
             .register_type::<TextInputCursorTimer>()
             .register_type::<TextInputInner>()
@@ -79,87 +81,41 @@ impl Plugin for TextInputPlugin {
 
 const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621);
 
-/// A bundle providing the additional components required for a text input.
+/// Marker component for a Text Input entity.
 ///
-/// Add this to a Bevy `NodeBundle`.
+/// Add this to a Bevy `NodeBundle`. In addition to its [required components](TextInput#impl-Component-for-TextInput), some other
+/// components may also be spawned with it: [`TextInputCursorPos`].
 ///
 /// # Example
 ///
 /// ```rust
 /// # use bevy::prelude::*;
-/// use bevy_simple_text_input::TextInputBundle;
+/// use bevy_simple_text_input::TextInput;
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((NodeBundle::default(), TextInputBundle::default()));
+///     commands.spawn((NodeBundle::default(), TextInput));
 /// }
 /// ```
-#[derive(Bundle, Default, Reflect)]
-pub struct TextInputBundle {
-    /// A component containing the text input's settings.
-    pub settings: TextInputSettings,
-    /// A component containing the Bevy `TextStyle` that will be used when creating the text input's inner Bevy `TextBundle`.
-    pub text_style: TextInputTextStyle,
-    /// A component containing a value indicating whether the text input is active or not.
-    pub inactive: TextInputInactive,
-    /// A component that manages the cursor's blinking.
-    pub cursor_timer: TextInputCursorTimer,
-    /// A component containing the current text cursor position.
-    pub cursor_pos: TextInputCursorPos,
-    /// A component containing the current value of the text input.
-    pub value: TextInputValue,
-    /// A component containing the placeholder text that is displayed when the text input is empty and not focused.
-    pub placeholder: TextInputPlaceholder,
-    /// This component's value is managed by Bevy's UI systems and enables tracking of hovers and presses.
-    pub interaction: Interaction,
-}
+#[derive(Component)]
+#[require(
+    TextInputSettings,
+    TextInputTextFont,
+    TextInputTextColor,
+    TextInputInactive,
+    TextInputCursorTimer,
+    TextInputValue,
+    TextInputPlaceholder,
+    Node,
+    Interaction
+)]
+pub struct TextInput;
 
-impl TextInputBundle {
-    /// Returns this [`TextInputBundle`] with a new [`TextInputValue`] containing the provided `String`.
-    ///
-    /// This also sets [`TextInputCursorPos`] so that the cursor position is at the end of the provided `String`.
-    pub fn with_value(mut self, value: impl Into<String>) -> Self {
-        let owned = value.into();
-
-        self.cursor_pos = TextInputCursorPos(owned.len());
-        self.value = TextInputValue(owned);
-
-        self
-    }
-
-    /// Returns this [`TextInputBundle`] with a new [`TextInputPlaceholder`] containing the provided `String`.
-    pub fn with_placeholder(
-        mut self,
-        placeholder: impl Into<String>,
-        text_style: Option<TextStyle>,
-    ) -> Self {
-        self.placeholder = TextInputPlaceholder {
-            value: placeholder.into(),
-            text_style,
-        };
-        self
-    }
-
-    /// Returns this [`TextInputBundle`] with a new [`TextInputTextStyle`] containing the provided Bevy `TextStyle`.
-    pub fn with_text_style(mut self, text_style: TextStyle) -> Self {
-        self.text_style = TextInputTextStyle(text_style);
-        self
-    }
-
-    /// Returns this [`TextInputBundle`] with a new [`TextInputInactive`] containing the provided `bool`.
-    pub fn with_inactive(mut self, inactive: bool) -> Self {
-        self.inactive = TextInputInactive(inactive);
-        self
-    }
-
-    /// Returns this [`TextInputBundle`] with a new [`TextInputSettings`].
-    pub fn with_settings(mut self, settings: TextInputSettings) -> Self {
-        self.settings = settings;
-        self
-    }
-}
-
-/// The Bevy `TextStyle` that will be used when creating the text input's inner Bevy `TextBundle`.
+/// The Bevy `TextColor` that will be used when creating the text input's inner Bevy `TextBundle`.
 #[derive(Component, Default, Reflect)]
-pub struct TextInputTextStyle(pub TextStyle);
+pub struct TextInputTextFont(pub TextFont);
+
+/// The Bevy `TextColor` that will be used when creating the text input's inner Bevy `TextBundle`.
+#[derive(Component, Default, Reflect)]
+pub struct TextInputTextColor(pub TextColor);
 
 /// If true, the text input does not respond to keyboard events and the cursor is hidden.
 #[derive(Component, Default, Reflect)]
@@ -296,10 +252,14 @@ pub struct TextInputValue(pub String);
 pub struct TextInputPlaceholder {
     /// The placeholder text.
     pub value: String,
+    /// The `TextFont` to use when rendering the placeholder text.
+    ///
+    /// If `None`, the text input font will be used.
+    pub text_font: Option<TextFont>,
     /// The style to use when rendering the placeholder text.
     ///
-    /// If `None`, the text input style will be used with alpha value of `0.25`.
-    pub text_style: Option<TextStyle>,
+    /// If `None`, the text input color will be used with alpha value of `0.25`.
+    pub text_color: Option<TextColor>,
 }
 
 #[derive(Component, Reflect)]
@@ -324,22 +284,21 @@ pub struct TextInputSubmitEvent {
 /// A convenience parameter for dealing with a text input's inner Bevy `Text` entity.
 #[derive(SystemParam)]
 struct InnerText<'w, 's> {
-    text_query: Query<'w, 's, &'static mut Text, With<TextInputInner>>,
+    text_query: Query<'w, 's, (), With<TextInputInner>>,
     children_query: Query<'w, 's, &'static Children>,
 }
-impl<'w, 's> InnerText<'w, 's> {
-    fn get_mut(&mut self, entity: Entity) -> Option<Mut<'_, Text>> {
+impl InnerText<'_, '_> {
+    fn inner_entity(&self, entity: Entity) -> Option<Entity> {
         self.children_query
             .iter_descendants(entity)
             .find(|descendant_entity| self.text_query.get(*descendant_entity).is_ok())
-            .and_then(|text_entity| self.text_query.get_mut(text_entity).ok())
     }
 }
 
 fn keyboard(
     key_input: Res<ButtonInput<KeyCode>>,
     input_events: Res<Events<KeyboardInput>>,
-    mut input_reader: Local<ManualEventReader<KeyboardInput>>,
+    mut input_reader: Local<EventCursor<KeyboardInput>>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
@@ -482,10 +441,11 @@ fn update_value(
         ),
         Or<(Changed<TextInputValue>, Changed<TextInputCursorPos>)>,
     >,
-    mut inner_text: InnerText,
+    inner_text: InnerText,
+    mut writer: TextUiWriter,
 ) {
     for (entity, text_input, settings, mut cursor_pos) in &mut input_query {
-        let Some(mut text) = inner_text.get_mut(entity) else {
+        let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
@@ -499,11 +459,14 @@ fn update_value(
             cursor_pos.0 = cursor_pos.0.clamp(0, text_input.0.chars().count());
         }
 
-        set_section_values(
+        let values = get_section_values(
             &masked_value(&text_input.0, settings.mask_character),
             cursor_pos.0,
-            &mut text.sections,
         );
+
+        *writer.text(inner, 0) = values.0;
+        *writer.text(inner, 1) = values.1;
+        *writer.text(inner, 2) = values.2;
     }
 }
 
@@ -511,14 +474,14 @@ fn scroll_with_cursor(
     mut inner_text_query: Query<
         (
             &TextLayoutInfo,
-            &mut Style,
-            &Node,
+            &mut Node,
+            &ComputedNode,
             &Parent,
             Option<&TargetCamera>,
         ),
         (With<TextInputInner>, Changed<TextLayoutInfo>),
     >,
-    mut style_query: Query<(&Node, &mut Style), Without<TextInputInner>>,
+    mut style_query: Query<(&ComputedNode, &mut Node), Without<TextInputInner>>,
     camera_query: Query<&Camera>,
     window_query: Query<&Window>,
     primary_window_query: Query<&Window, With<PrimaryWindow>>,
@@ -528,7 +491,7 @@ fn scroll_with_cursor(
             continue;
         };
 
-        match layout.glyphs.last().map(|g| g.section_index) {
+        match layout.glyphs.last().map(|g| g.span_index) {
             // no text -> do nothing
             None => return,
             // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame to move into view
@@ -547,7 +510,7 @@ fn scroll_with_cursor(
         let Some(cursor_pos) = layout
             .glyphs
             .iter()
-            .find(|g| g.section_index == 1)
+            .find(|g| g.span_index == 1)
             .map(|p| p.position.x)
         else {
             continue;
@@ -605,107 +568,108 @@ fn create(
     trigger: Trigger<OnAdd, TextInputValue>,
     mut commands: Commands,
     query: Query<(
-        &TextInputTextStyle,
+        Entity,
+        &TextInputTextFont,
+        &TextInputTextColor,
         &TextInputValue,
-        &TextInputCursorPos,
+        Option<&TextInputCursorPos>,
         &TextInputInactive,
         &TextInputSettings,
         &TextInputPlaceholder,
     )>,
 ) {
-    if let Ok((style, text_input, cursor_pos, inactive, settings, placeholder)) =
-        &query.get(trigger.entity())
+    if let Ok((
+        entity,
+        font,
+        color,
+        text_input,
+        maybe_cursor_pos,
+        inactive,
+        settings,
+        placeholder,
+    )) = &query.get(trigger.entity())
     {
-        let mut sections = vec![
-            // Pre-cursor
-            TextSection {
-                style: style.0.clone(),
-                ..default()
-            },
-            // cursor
-            TextSection {
-                style: TextStyle {
-                    font: CURSOR_HANDLE,
-                    color: if inactive.0 {
-                        Color::NONE
-                    } else {
-                        style.0.color
-                    },
-                    ..style.0.clone()
-                },
-                ..default()
-            },
-            // Post-cursor
-            TextSection {
-                style: style.0.clone(),
-                ..default()
-            },
-        ];
+        let cursor_pos = match maybe_cursor_pos {
+            None => {
+                let len = text_input.0.len();
+                commands.entity(*entity).insert(TextInputCursorPos(len));
+                len
+            }
+            Some(cursor_pos) => cursor_pos.0,
+        };
 
-        set_section_values(
+        let values = get_section_values(
             &masked_value(&text_input.0, settings.mask_character),
-            cursor_pos.0,
-            &mut sections,
+            cursor_pos,
         );
 
         let text = commands
             .spawn((
-                TextBundle {
-                    text: Text {
-                        linebreak_behavior: BreakLineOn::NoWrap,
-                        sections,
-                        ..default()
-                    },
-                    ..default()
-                },
+                Text::default(),
+                TextLayout::new_with_linebreak(LineBreak::NoWrap),
                 Name::new("TextInputInner"),
                 TextInputInner,
             ))
+            .with_children(|parent| {
+                // Pre-cursor
+                parent.spawn((TextSpan::new(values.0), font.0.clone()));
+
+                // Cursor
+                parent.spawn((
+                    TextSpan::new(values.1),
+                    TextFont {
+                        font: CURSOR_HANDLE,
+                        ..font.0.clone()
+                    },
+                    if inactive.0 {
+                        TextColor(Color::NONE)
+                    } else {
+                        color.0
+                    },
+                ));
+
+                // Post-cursor
+                parent.spawn((TextSpan::new(values.2), font.0.clone()));
+            })
             .id();
 
-        let placeholder_style = placeholder
-            .text_style
+        let placeholder_font = placeholder
+            .text_font
             .clone()
-            .unwrap_or_else(|| placeholder_style(&style.0));
+            .unwrap_or_else(|| font.0.clone());
+
+        let placeholder_color = placeholder
+            .text_color
+            .unwrap_or_else(|| placeholder_color(&color.0));
 
         let placeholder_visible = inactive.0 && text_input.0.is_empty();
 
         let placeholder_text = commands
             .spawn((
-                TextBundle {
-                    text: Text {
-                        linebreak_behavior: BreakLineOn::NoWrap,
-                        sections: vec![TextSection {
-                            value: placeholder.value.clone(),
-                            style: placeholder_style,
-                        }],
-                        ..default()
-                    },
-                    visibility: if placeholder_visible {
-                        Visibility::Inherited
-                    } else {
-                        Visibility::Hidden
-                    },
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        ..default()
-                    },
-                    ..default()
-                },
+                Text::new(&placeholder.value),
+                TextLayout::new_with_linebreak(LineBreak::NoWrap),
+                placeholder_font,
+                placeholder_color,
                 Name::new("TextInputPlaceholderInner"),
                 TextInputPlaceholderInner,
+                if placeholder_visible {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                },
+                Node {
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
             ))
             .id();
 
         let overflow_container = commands
             .spawn((
-                NodeBundle {
-                    style: Style {
-                        overflow: Overflow::clip(),
-                        justify_content: JustifyContent::FlexEnd,
-                        max_width: Val::Percent(100.),
-                        ..default()
-                    },
+                Node {
+                    overflow: Overflow::clip(),
+                    justify_content: JustifyContent::FlexEnd,
+                    max_width: Val::Percent(100.),
                     ..default()
                 },
                 Name::new("TextInputOverflowContainer"),
@@ -715,7 +679,7 @@ fn create(
         commands.entity(overflow_container).add_child(text);
         commands
             .entity(trigger.entity())
-            .push_children(&[overflow_container, placeholder_text]);
+            .add_children(&[overflow_container, placeholder_text]);
 
         // Prevent clicks from registering on UI elements underneath the text input.
         commands.entity(trigger.entity()).insert(FocusPolicy::Block);
@@ -727,23 +691,24 @@ fn show_hide_cursor(
     mut input_query: Query<
         (
             Entity,
-            &TextInputTextStyle,
+            &TextInputTextColor,
             &mut TextInputCursorTimer,
             &TextInputInactive,
         ),
         Changed<TextInputInactive>,
     >,
-    mut inner_text: InnerText,
+    inner_text: InnerText,
+    mut writer: TextUiWriter,
 ) {
-    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
-        let Some(mut text) = inner_text.get_mut(entity) else {
+    for (entity, color, mut cursor_timer, inactive) in &mut input_query {
+        let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        text.sections[1].style.color = if inactive.0 {
-            Color::NONE
+        *writer.color(inner, 1) = if inactive.0 {
+            TextColor(Color::NONE)
         } else {
-            style.0.color
+            color.0
         };
 
         cursor_timer.timer.reset();
@@ -754,14 +719,15 @@ fn show_hide_cursor(
 fn blink_cursor(
     mut input_query: Query<(
         Entity,
-        &TextInputTextStyle,
+        &TextInputTextColor,
         &mut TextInputCursorTimer,
         Ref<TextInputInactive>,
     )>,
-    mut inner_text: InnerText,
+    inner_text: InnerText,
+    mut writer: TextUiWriter,
     time: Res<Time>,
 ) {
-    for (entity, style, mut cursor_timer, inactive) in &mut input_query {
+    for (entity, color, mut cursor_timer, inactive) in &mut input_query {
         if inactive.0 {
             continue;
         }
@@ -769,9 +735,11 @@ fn blink_cursor(
         if cursor_timer.is_changed() && cursor_timer.should_reset {
             cursor_timer.timer.reset();
             cursor_timer.should_reset = false;
-            if let Some(mut text) = inner_text.get_mut(entity) {
-                text.sections[1].style.color = style.0.color;
-            }
+
+            if let Some(inner) = inner_text.inner_entity(entity) {
+                *writer.color(inner, 1) = color.0;
+            };
+
             continue;
         }
 
@@ -779,14 +747,14 @@ fn blink_cursor(
             continue;
         }
 
-        let Some(mut text) = inner_text.get_mut(entity) else {
+        let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        if text.sections[1].style.color != Color::NONE {
-            text.sections[1].style.color = Color::NONE;
+        if writer.color(inner, 1).0 != Color::NONE {
+            *writer.color(inner, 1) = TextColor(Color::NONE);
         } else {
-            text.sections[1].style.color = style.0.color;
+            *writer.color(inner, 1) = color.0;
         }
     }
 }
@@ -811,44 +779,58 @@ fn show_hide_placeholder(
 }
 
 fn update_style(
-    mut input_query: Query<
-        (Entity, &TextInputTextStyle, &TextInputInactive),
-        Changed<TextInputTextStyle>,
-    >,
-    mut inner_text: InnerText,
+    mut input_query: Query<(Entity, &TextInputTextFont), Changed<TextInputTextFont>>,
+    inner_text: InnerText,
+    mut writer: TextUiWriter,
 ) {
-    for (entity, style, inactive) in &mut input_query {
-        let Some(mut text) = inner_text.get_mut(entity) else {
+    for (entity, font) in &mut input_query {
+        let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
 
-        text.sections[0].style = style.0.clone();
-        text.sections[1].style = TextStyle {
+        *writer.font(inner, 0) = font.0.clone();
+        *writer.font(inner, 1) = TextFont {
             font: CURSOR_HANDLE,
-            color: if inactive.0 {
-                Color::NONE
-            } else {
-                style.0.color
-            },
-            ..style.0.clone()
+            ..font.0.clone()
         };
-        text.sections[2].style = style.0.clone();
+        *writer.font(inner, 2) = font.0.clone();
     }
 }
 
-fn set_section_values(value: &str, cursor_pos: usize, sections: &mut [TextSection]) {
+fn update_color(
+    mut input_query: Query<
+        (Entity, &TextInputTextColor, &TextInputInactive),
+        Changed<TextInputTextColor>,
+    >,
+    inner_text: InnerText,
+    mut writer: TextUiWriter,
+) {
+    for (entity, color, inactive) in &mut input_query {
+        let Some(inner) = inner_text.inner_entity(entity) else {
+            continue;
+        };
+        *writer.color(inner, 0) = color.0;
+        *writer.color(inner, 1) = if inactive.0 {
+            TextColor(Color::NONE)
+        } else {
+            color.0
+        };
+        *writer.color(inner, 2) = color.0;
+    }
+}
+
+fn get_section_values(value: &str, cursor_pos: usize) -> (String, String, String) {
     let before = value.chars().take(cursor_pos).collect();
     let after = value.chars().skip(cursor_pos).collect();
 
-    sections[0].value = before;
-    sections[2].value = after;
-
     // If the cursor is between two characters, use the zero-width cursor.
-    if cursor_pos >= value.chars().count() {
-        sections[1].value = "}".to_string();
+    let cursor = if cursor_pos >= value.chars().count() {
+        "}".to_string()
     } else {
-        sections[1].value = "|".to_string();
-    }
+        "|".to_string()
+    };
+
+    (before, cursor, after)
 }
 
 fn remove_char_at(input: &str, index: usize) -> String {
@@ -874,10 +856,6 @@ fn masked_value(value: &str, mask: Option<char>) -> String {
     )
 }
 
-fn placeholder_style(style: &TextStyle) -> TextStyle {
-    let color = style.color.with_alpha(style.color.alpha() * 0.25);
-    TextStyle {
-        color,
-        ..style.clone()
-    }
+fn placeholder_color(color: &TextColor) -> TextColor {
+    TextColor(color.with_alpha(color.alpha() * 0.25))
 }
