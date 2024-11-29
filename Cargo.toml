@@ -17,7 +17,7 @@ exclude = [".github"]
 [dependencies.bevy]
 version = "0.15"
 default-features = false
-features = ["bevy_ui", "bevy_asset", "bevy_text"]
+features = ["bevy_ui", "bevy_asset", "bevy_text", "bevy_window"]
 
 [dev-dependencies.bevy]
 version = "0.15"
