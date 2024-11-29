@@ -104,6 +104,7 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
     TextInputCursorTimer,
     TextInputValue,
     TextInputPlaceholder,
+    Node,
     Interaction
 )]
 pub struct TextInput;
