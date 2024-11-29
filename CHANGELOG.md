@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.10.0
+
+* Upgrade to Bevy 0.15 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/77>
+* Fix missing type registrations by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/76>
+
 ## v0.9.2
 
 * Fix insertion of a space between multibyte characters by @ilotterytea in <https://github.com/rparrett/bevy_simple_text_input/pull/72>
