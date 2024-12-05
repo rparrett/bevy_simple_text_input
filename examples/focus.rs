@@ -32,7 +32,7 @@ fn setup(mut commands: Commands) {
                 justify_content: JustifyContent::Center,
                 ..default()
             },
-            // Make this container node bundle to be Interactive so that clicking on it removes
+            // Make this container node interactive so that clicking on it removes
             // focus from the text input.
             Interaction::None,
         ))
