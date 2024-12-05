@@ -493,12 +493,12 @@ fn scroll_with_cursor(
 
         match layout.glyphs.last().map(|g| g.span_index) {
             // no text -> do nothing
-            None => return,
+            None => continue,
             // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame to move into view
             Some(1) => {
                 style.left = Val::Auto;
                 parent_style.justify_content = JustifyContent::FlexEnd;
-                return;
+                continue;
             }
             _ => (),
         }
