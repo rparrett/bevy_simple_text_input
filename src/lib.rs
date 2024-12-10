@@ -461,7 +461,7 @@ impl<'w, 's> InnerText<'w, 's> {
 fn keyboard(
     key_input: Res<ButtonInput<KeyCode>>,
     input_events: Res<Events<KeyboardInput>>,
-    input_reader: Local<ManualEventReader<KeyboardInput>>,
+    mut input_reader: Local<ManualEventReader<KeyboardInput>>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
@@ -702,6 +702,8 @@ fn keyboard(
             });
         }
     }
+
+    input_reader.clear(&input_events);
 }
 
 fn update_value(
@@ -1094,7 +1096,7 @@ fn set_selection(
                                 glyph.w,
                                 run.line_height,
                             ));
-                            segment_y = glyph.y;
+                            segment_y = run.line_top + glyph.y;
                         } else {
                             let segment = segments.last_mut().unwrap();
                             segment.z = glyph.x + glyph.w - segment.x;
