@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.1
+
+* Fix typo by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/81>
+* Replace "return" with "continue" in scroll_with_cursor by @copygirl in <https://github.com/rparrett/bevy_simple_text_input/pull/80>
+* Fix missing `Default` impl on `TextInput` by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/83>
+
 ## v0.10.0
 
 * Upgrade to Bevy 0.15 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/77>
