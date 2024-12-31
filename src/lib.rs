@@ -95,7 +95,7 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
 ///     commands.spawn((NodeBundle::default(), TextInput));
 /// }
 /// ```
-#[derive(Component)]
+#[derive(Component, Default)]
 #[require(
     TextInputSettings,
     TextInputTextFont,
