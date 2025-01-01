@@ -56,7 +56,8 @@ impl Plugin for TextInputPlugin {
             .add_systems(
                 Update,
                 (
-                    keyboard,
+                    ime_input,
+                    keyboard.after(ime_input),
                     update_value.after(keyboard),
                     blink_cursor,
                     show_hide_cursor,
@@ -74,6 +75,7 @@ impl Plugin for TextInputPlugin {
             .register_type::<TextInputCursorTimer>()
             .register_type::<TextInputInner>()
             .register_type::<TextInputValue>()
+            .register_type::<TextInputIMEPreEdit>()
             .register_type::<TextInputPlaceholder>()
             .register_type::<TextInputCursorPos>();
     }
@@ -103,6 +105,7 @@ const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621)
     TextInputInactive,
     TextInputCursorTimer,
     TextInputValue,
+    TextInputIMEPreEdit,
     TextInputPlaceholder,
     Node,
     Interaction
@@ -247,6 +250,10 @@ impl Default for TextInputNavigationBindings {
 #[derive(Component, Default, Reflect)]
 pub struct TextInputValue(pub String);
 
+/// A component containing the current value of the ime preedit.
+#[derive(Component, Default, Reflect)]
+pub struct TextInputIMEPreEdit(pub String, pub Option<(usize, usize)>);
+
 /// A component containing the placeholder text that is displayed when the text input is empty and not focused.
 #[derive(Component, Default, Reflect)]
 pub struct TextInputPlaceholder {
@@ -292,6 +299,114 @@ impl InnerText<'_, '_> {
         self.children_query
             .iter_descendants(entity)
             .find(|descendant_entity| self.text_query.get(*descendant_entity).is_ok())
+    }
+}
+
+fn ime_input(
+    mut window: Single<&mut Window, With<PrimaryWindow>>,
+    mut ime_events: EventReader<Ime>,
+    mut text_input_query: Query<(
+        Entity,
+        &TextInputInactive,
+        &GlobalTransform,
+        &ComputedNode,
+        &mut TextInputValue,
+        &mut TextInputIMEPreEdit,
+        &mut TextInputCursorPos,
+        &mut TextInputCursorTimer,
+    )>,
+    inner_text_query: Query<
+        (
+            Entity,
+            &TextLayoutInfo,
+        ),
+        With<TextInputInner>,
+    >,
+    parent_query: Query<&Parent>,
+) {
+    let ime_preedit_cursor_pos = |ime_preedit: &TextInputIMEPreEdit| {
+        if ime_preedit.0.is_empty() {
+            return 0;
+        }
+        let ime_preedit_len = ime_preedit.0.chars().count();
+        if ime_preedit.1.is_none() {
+            return ime_preedit_len;
+        }
+        let ime_cursor_byte_pos = ime_preedit.1.unwrap().1;
+        ime_preedit.0
+            .char_indices()
+            .enumerate()
+            .find(|(_, (byte_pos, _))| *byte_pos == ime_cursor_byte_pos)
+            .map(|(pos, _)| pos).unwrap_or(ime_preedit_len)
+    };
+    let remove_ime_preedit = |text_input: &mut TextInputValue, ime_preedit: &mut TextInputIMEPreEdit, cursor_pos: usize| {
+        if ime_preedit.0.is_empty() {
+            return cursor_pos;
+        }
+        let ime_preedit_len = ime_preedit.0.chars().count();
+        let ime_cursor_pos = ime_preedit_cursor_pos(ime_preedit);
+        let pos_start = if cursor_pos < ime_cursor_pos { 0 }  else { cursor_pos - ime_cursor_pos};
+        let pos_end = if cursor_pos + ime_preedit_len < ime_cursor_pos { 0 } else { cursor_pos + ime_preedit_len - ime_cursor_pos };
+        if pos_start >= pos_end {
+            return cursor_pos;
+        }
+        text_input.0 = text_input.0
+            .chars()
+            .enumerate()
+            .filter_map(|(i, c)| if i < pos_start || i >= pos_end { Some(c) } else { None })
+            .collect();
+        ime_preedit.0 = String::new();
+        ime_preedit.1 = None;
+        pos_start
+    };
+    for (input_entity, inactive, gt, nd, mut text_input, mut ime_preedit, mut cursor_pos, mut cursor_timer) in &mut text_input_query {
+        if inactive.0 {
+            continue;
+        }
+        let mut ime_position = gt.translation().xy() - Vec2::new(nd.size().x, - nd.size().y) / 2.0;
+        for (text_entity, layout ) in inner_text_query.iter() {
+            for id in parent_query.iter_ancestors(text_entity) {
+                if input_entity == id {
+                    let cursor_position_x = layout
+                        .glyphs
+                        .iter()
+                        .find(|g| g.span_index == 1)
+                        .map(|p| p.position.x).unwrap_or_default();
+                    ime_position = ime_position + Vec2::new(cursor_position_x, 0f32);
+                    break;
+                }
+            }
+        }
+        window.ime_enabled = true;
+        window.ime_position = ime_position / window.scale_factor();
+        for ev in ime_events.read() {
+            let mut pos = cursor_pos.bypass_change_detection().0;
+            match ev {
+                Ime::Commit { value, .. } => {
+                    pos = remove_ime_preedit(&mut text_input, &mut ime_preedit, pos);
+                    let byte_pos = byte_pos(&text_input.0, pos);
+                    text_input.0.insert_str(byte_pos, value.as_str());
+                    cursor_pos.0 = pos + value.chars().count();
+                    cursor_timer.should_reset = true;
+                }
+                Ime::Preedit { value, cursor, .. } => {
+                    pos = remove_ime_preedit(&mut text_input, &mut ime_preedit, pos);
+                    let byte_pos = byte_pos(&text_input.0, pos);
+                    text_input.0.insert_str(byte_pos, value.as_str());
+                    ime_preedit.0 = value.clone();
+                    ime_preedit.1 = *cursor;
+                    cursor_pos.0 = pos + ime_preedit_cursor_pos(&ime_preedit);
+                    cursor_timer.should_reset = true;
+                }
+                Ime::Enabled { .. } => {
+                    ime_preedit.0 = String::new();
+                    ime_preedit.1 = None;
+                }
+                Ime::Disabled { .. } => {
+                    remove_ime_preedit(&mut text_input, &mut ime_preedit, pos);
+                }
+            }
+        }
     }
 }
 
