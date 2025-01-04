@@ -315,13 +315,7 @@ fn ime_input(
         &mut TextInputCursorPos,
         &mut TextInputCursorTimer,
     )>,
-    inner_text_query: Query<
-        (
-            Entity,
-            &TextLayoutInfo,
-        ),
-        With<TextInputInner>,
-    >,
+    inner_text_query: Query<(Entity, &TextLayoutInfo), With<TextInputInner>>,
     parent_query: Query<&Parent>,
 ) {
     let ime_preedit_cursor_pos = |ime_preedit: &TextInputIMEPreEdit| {
@@ -333,45 +327,75 @@ fn ime_input(
             return ime_preedit_len;
         }
         let ime_cursor_byte_pos = ime_preedit.1.unwrap().1;
-        ime_preedit.0
+        ime_preedit
+            .0
             .char_indices()
             .enumerate()
             .find(|(_, (byte_pos, _))| *byte_pos == ime_cursor_byte_pos)
-            .map(|(pos, _)| pos).unwrap_or(ime_preedit_len)
+            .map(|(pos, _)| pos)
+            .unwrap_or(ime_preedit_len)
     };
-    let remove_ime_preedit = |text_input: &mut TextInputValue, ime_preedit: &mut TextInputIMEPreEdit, cursor_pos: usize| {
+    let remove_ime_preedit = |text_input: &mut TextInputValue,
+                              ime_preedit: &mut TextInputIMEPreEdit,
+                              cursor_pos: usize| {
         if ime_preedit.0.is_empty() {
             return cursor_pos;
         }
         let ime_preedit_len = ime_preedit.0.chars().count();
         let ime_cursor_pos = ime_preedit_cursor_pos(ime_preedit);
-        let pos_start = if cursor_pos < ime_cursor_pos { 0 }  else { cursor_pos - ime_cursor_pos};
-        let pos_end = if cursor_pos + ime_preedit_len < ime_cursor_pos { 0 } else { cursor_pos + ime_preedit_len - ime_cursor_pos };
+        let pos_start = if cursor_pos < ime_cursor_pos {
+            0
+        } else {
+            cursor_pos - ime_cursor_pos
+        };
+        let pos_end = if cursor_pos + ime_preedit_len < ime_cursor_pos {
+            0
+        } else {
+            cursor_pos + ime_preedit_len - ime_cursor_pos
+        };
         if pos_start >= pos_end {
             return cursor_pos;
         }
-        text_input.0 = text_input.0
+        text_input.0 = text_input
+            .0
             .chars()
             .enumerate()
-            .filter_map(|(i, c)| if i < pos_start || i >= pos_end { Some(c) } else { None })
+            .filter_map(|(i, c)| {
+                if i < pos_start || i >= pos_end {
+                    Some(c)
+                } else {
+                    None
+                }
+            })
             .collect();
         ime_preedit.0 = String::new();
         ime_preedit.1 = None;
         pos_start
     };
-    for (input_entity, inactive, gt, nd, mut text_input, mut ime_preedit, mut cursor_pos, mut cursor_timer) in &mut text_input_query {
+    for (
+        input_entity,
+        inactive,
+        gt,
+        nd,
+        mut text_input,
+        mut ime_preedit,
+        mut cursor_pos,
+        mut cursor_timer,
+    ) in &mut text_input_query
+    {
         if inactive.0 {
             continue;
         }
-        let mut ime_position = gt.translation().xy() - Vec2::new(nd.size().x, - nd.size().y) / 2.0;
-        for (text_entity, layout ) in inner_text_query.iter() {
+        let mut ime_position = gt.translation().xy() - Vec2::new(nd.size().x, -nd.size().y) / 2.0;
+        for (text_entity, layout) in inner_text_query.iter() {
             for id in parent_query.iter_ancestors(text_entity) {
                 if input_entity == id {
                     let cursor_position_x = layout
                         .glyphs
                         .iter()
                         .find(|g| g.span_index == 1)
-                        .map(|p| p.position.x).unwrap_or_default();
+                        .map(|p| p.position.x)
+                        .unwrap_or_default();
                     ime_position = ime_position + Vec2::new(cursor_position_x, 0f32);
                     break;
                 }
