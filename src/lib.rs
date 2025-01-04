@@ -343,16 +343,8 @@ fn ime_input(
         }
         let ime_preedit_len = ime_preedit.0.chars().count();
         let ime_cursor_pos = ime_preedit_cursor_pos(ime_preedit);
-        let pos_start = if cursor_pos < ime_cursor_pos {
-            0
-        } else {
-            cursor_pos - ime_cursor_pos
-        };
-        let pos_end = if cursor_pos + ime_preedit_len < ime_cursor_pos {
-            0
-        } else {
-            cursor_pos + ime_preedit_len - ime_cursor_pos
-        };
+        let pos_start = cursor_pos.saturating_sub(ime_cursor_pos);
+        let pos_end = (cursor_pos + ime_preedit_len).saturating_sub(ime_cursor_pos);
         if pos_start >= pos_end {
             return cursor_pos;
         }
@@ -396,7 +388,7 @@ fn ime_input(
                         .find(|g| g.span_index == 1)
                         .map(|p| p.position.x)
                         .unwrap_or_default();
-                    ime_position = ime_position + Vec2::new(cursor_position_x, 0f32);
+                    ime_position += Vec2::new(cursor_position_x, 0f32);
                     break;
                 }
             }
@@ -678,10 +670,10 @@ fn scroll_with_cursor(
                 };
 
                 let Some(window) = window else {
-                    continue;
+                        continue;
                 };
 
-                window.scale_factor()
+                        window.scale_factor()
             }
             None => 1.0,
         };
