@@ -470,36 +470,38 @@ fn update_value(
 
 fn scroll_with_cursor(
     mut inner_text_query: Query<
-        (&TextLayoutInfo, &mut Node, &ComputedNode, &Parent),
+        (&TextLayoutInfo, &ComputedNode, &Parent),
         (With<TextInputInner>, Changed<TextLayoutInfo>),
     >,
-    mut style_query: Query<(&ComputedNode, &mut Node), Without<TextInputInner>>,
+    mut style_query: Query<
+        (&ComputedNode, &mut Node, &mut ScrollPosition),
+        Without<TextInputInner>,
+    >,
 ) {
-    for (layout, mut style, child_node, parent) in inner_text_query.iter_mut() {
-        let Ok((parent_node, mut parent_style)) = style_query.get_mut(parent.get()) else {
+    for (layout, computed, parent) in inner_text_query.iter_mut() {
+        let Ok((overflow_computed, mut overflow_style, mut overflow_scroll)) =
+            style_query.get_mut(parent.get())
+        else {
             continue;
         };
 
         match layout.glyphs.last().map(|g| g.span_index) {
-            // no text -> do nothing
+            // No text, nothing to do.
             None => continue,
-            // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame
-            // to move into view
+            // If cursor is at the end, we can use FlexEnd so newly typed text does not take a
+            // frame to move into view
             Some(1) => {
-                style.left = Val::Auto;
-                parent_style.justify_content = JustifyContent::FlexEnd;
+                overflow_scroll.offset_x = 0.0;
+                overflow_style.justify_content = JustifyContent::FlexEnd;
                 continue;
             }
             _ => (),
         }
 
-        // if cursor is in the middle, we use FlexStart + `left` px for consistent behaviour when
-        // typing the middle
+        let inverse_scale_factor = computed.inverse_scale_factor();
 
-        let inverse_scale_factor = child_node.inverse_scale_factor();
-
-        let child_size = child_node.size().x * inverse_scale_factor;
-        let parent_size = parent_node.size().x * inverse_scale_factor;
+        let text_size = computed.size().x * inverse_scale_factor;
+        let overflow_size = overflow_computed.size().x * inverse_scale_factor;
 
         let Some(cursor_pos) = layout
             .glyphs
@@ -510,18 +512,17 @@ fn scroll_with_cursor(
             continue;
         };
 
-        let box_pos = match style.left {
-            Val::Px(px) => -px,
-            _ => child_size - parent_size,
-        };
+        let relative_pos = cursor_pos - overflow_scroll.offset_x;
 
-        let relative_pos = cursor_pos - box_pos;
+        if relative_pos < 0.0 || relative_pos > overflow_size {
+            let req_px = overflow_size * 0.5 - cursor_pos;
+            let req_px = req_px.clamp(overflow_size - text_size, 0.0);
 
-        if relative_pos < 0.0 || relative_pos > parent_size {
-            let req_px = parent_size * 0.5 - cursor_pos;
-            let req_px = req_px.clamp(parent_size - child_size, 0.0);
-            style.left = Val::Px(req_px);
-            parent_style.justify_content = JustifyContent::FlexStart;
+            // If the cursor is not at the end, we use have to use FlexStart.
+            // See https://github.com/bevyengine/bevy/issues/17129.
+
+            overflow_scroll.offset_x = -req_px;
+            overflow_style.justify_content = JustifyContent::FlexStart;
         }
     }
 }
@@ -629,7 +630,7 @@ fn create(
         let overflow_container = commands
             .spawn((
                 Node {
-                    overflow: Overflow::clip(),
+                    overflow: Overflow::scroll_x(),
                     justify_content: JustifyContent::FlexEnd,
                     max_width: Val::Percent(100.),
                     ..default()
