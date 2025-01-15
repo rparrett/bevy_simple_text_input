@@ -27,10 +27,8 @@ use bevy::{
     ecs::{event::EventCursor, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
-    render::camera::RenderTarget,
     text::{LineBreak, TextLayoutInfo},
     ui::FocusPolicy,
-    window::{PrimaryWindow, WindowRef},
 };
 
 /// A Bevy `Plugin` providing the systems and assets required to make a [`TextInput`] work.
@@ -472,21 +470,12 @@ fn update_value(
 
 fn scroll_with_cursor(
     mut inner_text_query: Query<
-        (
-            &TextLayoutInfo,
-            &mut Node,
-            &ComputedNode,
-            &Parent,
-            Option<&TargetCamera>,
-        ),
+        (&TextLayoutInfo, &mut Node, &ComputedNode, &Parent),
         (With<TextInputInner>, Changed<TextLayoutInfo>),
     >,
     mut style_query: Query<(&ComputedNode, &mut Node), Without<TextInputInner>>,
-    camera_query: Query<&Camera>,
-    window_query: Query<&Window>,
-    primary_window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
-    for (layout, mut style, child_node, parent, target_camera) in inner_text_query.iter_mut() {
+    for (layout, mut style, child_node, parent) in inner_text_query.iter_mut() {
         let Ok((parent_node, mut parent_style)) = style_query.get_mut(parent.get()) else {
             continue;
         };
@@ -494,7 +483,8 @@ fn scroll_with_cursor(
         match layout.glyphs.last().map(|g| g.span_index) {
             // no text -> do nothing
             None => continue,
-            // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame to move into view
+            // if cursor is at the end, position at FlexEnd so newly typed text does not take a frame
+            // to move into view
             Some(1) => {
                 style.left = Val::Auto;
                 parent_style.justify_content = JustifyContent::FlexEnd;
@@ -503,50 +493,22 @@ fn scroll_with_cursor(
             _ => (),
         }
 
-        // if cursor is in the middle, we use FlexStart + `left` px for consistent behaviour when typing the middle
-        let child_size = child_node.size().x;
-        let parent_size = parent_node.size().x;
+        // if cursor is in the middle, we use FlexStart + `left` px for consistent behaviour when
+        // typing the middle
+
+        let inverse_scale_factor = child_node.inverse_scale_factor();
+
+        let child_size = child_node.size().x * inverse_scale_factor;
+        let parent_size = parent_node.size().x * inverse_scale_factor;
 
         let Some(cursor_pos) = layout
             .glyphs
             .iter()
             .find(|g| g.span_index == 1)
-            .map(|p| p.position.x)
+            .map(|p| p.position.x * inverse_scale_factor)
         else {
             continue;
         };
-
-        // glyph positions are not adjusted for scale factor so we do that here
-        let window_ref = match target_camera {
-            Some(target) => {
-                let Ok(camera) = camera_query.get(target.0) else {
-                    continue;
-                };
-
-                match camera.target {
-                    RenderTarget::Window(window_ref) => Some(window_ref),
-                    _ => None,
-                }
-            }
-            None => Some(WindowRef::Primary),
-        };
-
-        let scale_factor = match window_ref {
-            Some(window_ref) => {
-                let window = match window_ref {
-                    WindowRef::Entity(w) => window_query.get(w).ok(),
-                    WindowRef::Primary => primary_window_query.get_single().ok(),
-                };
-
-                let Some(window) = window else {
-                    continue;
-                };
-
-                window.scale_factor()
-            }
-            None => 1.0,
-        };
-        let cursor_pos = cursor_pos / scale_factor;
 
         let box_pos = match style.left {
             Val::Px(px) => -px,
