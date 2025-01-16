@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.2
+
+* Fix scrolling when scale factor is not 1 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/90>
+* Run CI on other operating systems by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/91>
+* Use Bevy's built-in scrolling by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/88>
+* Add a second text input to the focus example by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/92>
+
 ## v0.10.1
 
 * Fix typo by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/81>
