@@ -30,6 +30,8 @@ fn setup(mut commands: Commands) {
                 height: Val::Percent(100.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
+                flex_direction: FlexDirection::ColumnReverse,
+                row_gap: Val::Px(10.),
                 ..default()
             },
             // Make this container node interactive so that clicking on it removes
@@ -37,31 +39,36 @@ fn setup(mut commands: Commands) {
             Interaction::None,
         ))
         .with_children(|parent| {
-            parent.spawn((
-                Node {
-                    width: Val::Px(200.0),
-                    border: UiRect::all(Val::Px(5.0)),
-                    padding: UiRect::all(Val::Px(5.0)),
-                    ..default()
-                },
-                BorderColor(BORDER_COLOR_INACTIVE),
-                BackgroundColor(BACKGROUND_COLOR),
-                // Prevent clicks on the input from also bubbling down to the container
-                // behind it
-                FocusPolicy::Block,
-                TextInput,
-                TextInputTextFont(TextFont {
-                    font_size: 34.,
-                    ..default()
-                }),
-                TextInputTextColor(TextColor(TEXT_COLOR)),
-                TextInputPlaceholder {
-                    value: "Click Me".to_string(),
-                    ..default()
-                },
-                TextInputInactive(true),
-            ));
+            parent.spawn(text_input());
+            parent.spawn(text_input());
         });
+}
+
+fn text_input() -> impl Bundle {
+    (
+        Node {
+            width: Val::Px(200.0),
+            border: UiRect::all(Val::Px(5.0)),
+            padding: UiRect::all(Val::Px(5.0)),
+            ..default()
+        },
+        BorderColor(BORDER_COLOR_INACTIVE),
+        BackgroundColor(BACKGROUND_COLOR),
+        // Prevent clicks on the input from also bubbling down to the container
+        // behind it
+        FocusPolicy::Block,
+        TextInput,
+        TextInputTextFont(TextFont {
+            font_size: 34.,
+            ..default()
+        }),
+        TextInputTextColor(TextColor(TEXT_COLOR)),
+        TextInputPlaceholder {
+            value: "Click Me".to_string(),
+            ..default()
+        },
+        TextInputInactive(true),
+    )
 }
 
 fn focus(
