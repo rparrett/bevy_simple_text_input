@@ -15,6 +15,39 @@ An unambitious single-line text input widget for `bevy_ui`.
 
 See [`examples/basic.rs`](https://github.com/rparrett/bevy_simple_text_input/blob/latest/examples/basic.rs).
 
+## Features
+
+I am not trying to build and maintain an enterprise-grade text input, just something that is good enough to be useful in small projects.
+
+- [X] Scrolling
+- [X] Keyboard cursor movement (char, word, start/end)
+- [X] Disable / focus
+- [X] Placeholders
+- [X] Doesn't *completely* choke on unicode
+- [X] Password masking
+- [X] "Submit" events
+
+### Maybe
+
+- [ ] Input filtering
+- [ ] Length limit
+- [ ] Mouse cursor movement
+- [ ] Proper unicode grapheme support
+
+### Probably not
+
+I *might* consider very high quality contributions in these areas, but probably won't be working on them myself. These would likely involve adding dependencies or adding lots of code that I don't want to commit to maintaining.
+
+- [ ] Multi-line
+- [ ] Copy/paste
+- [ ] IME
+- [ ] Selection
+- [ ] Mobile
+
+### Definitely not
+
+- [ ] Rich text
+
 ## Compatibility
 
 | `bevy_simple_text_input` | `bevy` |
@@ -29,9 +62,7 @@ See [`examples/basic.rs`](https://github.com/rparrett/bevy_simple_text_input/blo
 
 Please feel free to open a PR!
 
-Keep in mind that I am not necessarily trying to build an enterprise-grade text input, just something that is good enough to be useful in small projects.
-
-The code should be simple enough for users to quickly understand and modify for their own purposes. Any new dependencies must not also depend on Bevy.
+The code should be simple enough for users to quickly understand and modify for their own purposes. Any new dependencies must not also depend on Bevy. Ideally, we should not add *any* new dependencies.
 
 Please keep PRs small and scoped to a single feature or fix.
 
