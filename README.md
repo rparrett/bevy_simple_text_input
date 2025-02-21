@@ -33,14 +33,14 @@ I am not trying to build and maintain an enterprise-grade text input, just somet
 - [ ] Length limit
 - [ ] Mouse cursor movement
 - [ ] Proper unicode grapheme support
+- [ ] IME support
 
 ### Probably not
 
 I *might* consider very high quality contributions in these areas, but probably won't be working on them myself. These would likely involve adding dependencies or adding lots of code that I don't want to commit to maintaining.
 
 - [ ] Multi-line
-- [ ] Copy/paste
-- [ ] IME
+- [ ] Copy / paste
 - [ ] Selection
 - [ ] Mobile
 
