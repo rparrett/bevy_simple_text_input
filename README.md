@@ -21,10 +21,11 @@ I am not necessarily trying to build an enterprise-grade text input, just someth
 
 - [X] Scrolling
 - [X] Keyboard cursor movement (char, word, start/end)
-- [X] Enable / Disable / Focus
+- [X] Disable / focus
 - [X] Placeholders
 - [X] Doesn't *completely* choke on unicode
-- [X] Password Masking
+- [X] Password masking
+- [X] "Submit" events
 
 ### Maybe
 
