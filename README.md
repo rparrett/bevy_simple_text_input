@@ -29,6 +29,7 @@ I am not necessarily trying to build an enterprise-grade text input, just someth
 ### Maybe
 
 - [ ] Input filtering
+- [ ] Length limit
 - [ ] Mouse cursor movement
 - [ ] Proper unicode grapheme support
 
@@ -41,6 +42,10 @@ I *might* consider very high quality contributions in these areas, but probably 
 - [ ] IME
 - [ ] Selection
 - [ ] Mobile
+
+### Definitely not
+
+- [ ] Rich text
 
 ## Compatibility
 
