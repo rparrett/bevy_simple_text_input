@@ -17,7 +17,7 @@ See [`examples/basic.rs`](https://github.com/rparrett/bevy_simple_text_input/blo
 
 ## Features
 
-I am not necessarily trying to build an enterprise-grade text input, just something that is good enough to be useful in small projects. I long for the day when this functionality is built into Bevy and I can delete this project.
+I am not trying to build and maintain an enterprise-grade text input, just something that is good enough to be useful in small projects.
 
 - [X] Scrolling
 - [X] Keyboard cursor movement (char, word, start/end)
