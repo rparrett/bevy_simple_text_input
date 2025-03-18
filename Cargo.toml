@@ -12,15 +12,18 @@ categories = ["game-development"]
 readme = "README.md"
 exclude = [".github"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["std"]
+std = ["bevy/std"]
+libm = ["bevy/libm"]
 
 [dependencies.bevy]
-version = "0.15"
+git = "https://github.com/bevyengine/bevy.git"
 default-features = false
 features = ["bevy_ui", "bevy_asset", "bevy_text", "bevy_window"]
 
 [dev-dependencies.bevy]
-version = "0.15"
+git = "https://github.com/bevyengine/bevy.git"
 default-features = true
 
 [lints.rust]

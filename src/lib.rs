@@ -23,7 +23,7 @@
 //! ```
 
 use bevy::{
-    asset::load_internal_binary_asset,
+    asset::{load_internal_binary_asset, weak_handle},
     ecs::{event::EventCursor, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
@@ -77,7 +77,7 @@ impl Plugin for TextInputPlugin {
     }
 }
 
-const CURSOR_HANDLE: Handle<Font> = Handle::weak_from_u128(10482756907980398621);
+const CURSOR_HANDLE: Handle<Font> = weak_handle!("82b134b2-92c0-461a-891f-c35b968f2b88");
 
 /// Marker component for a Text Input entity.
 ///
@@ -419,7 +419,7 @@ fn keyboard(
         }
 
         if let Some(value) = submitted_value {
-            submit_writer.send(TextInputSubmitEvent {
+            submit_writer.write(TextInputSubmitEvent {
                 entity: input_entity,
                 value,
             });
@@ -470,7 +470,7 @@ fn update_value(
 
 fn scroll_with_cursor(
     mut inner_text_query: Query<
-        (&TextLayoutInfo, &ComputedNode, &Parent),
+        (&TextLayoutInfo, &ComputedNode, &ChildOf),
         (With<TextInputInner>, Changed<TextLayoutInfo>),
     >,
     mut style_query: Query<
@@ -478,9 +478,9 @@ fn scroll_with_cursor(
         Without<TextInputInner>,
     >,
 ) {
-    for (layout, computed, parent) in inner_text_query.iter_mut() {
+    for (layout, computed, child_of) in inner_text_query.iter_mut() {
         let Ok((overflow_computed, mut overflow_style, mut overflow_scroll)) =
-            style_query.get_mut(parent.get())
+            style_query.get_mut(child_of.parent)
         else {
             continue;
         };
@@ -550,7 +550,7 @@ fn create(
         inactive,
         settings,
         placeholder,
-    )) = &query.get(trigger.entity())
+    )) = &query.get(trigger.target())
     {
         let cursor_pos = match maybe_cursor_pos {
             None => {
@@ -641,11 +641,11 @@ fn create(
 
         commands.entity(overflow_container).add_child(text);
         commands
-            .entity(trigger.entity())
+            .entity(trigger.target())
             .add_children(&[overflow_container, placeholder_text]);
 
         // Prevent clicks from registering on UI elements underneath the text input.
-        commands.entity(trigger.entity()).insert(FocusPolicy::Block);
+        commands.entity(trigger.target()).insert(FocusPolicy::Block);
     }
 }
 
