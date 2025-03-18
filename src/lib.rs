@@ -18,7 +18,15 @@
 //!
 //! fn setup(mut commands: Commands) {
 //!     commands.spawn(Camera2d);
-//!     commands.spawn((NodeBundle::default(), TextInput));
+//!     commands.spawn((
+//!         TextInput,
+//!         Node {
+//!             padding: UiRect::all(Val::Px(5.0)),
+//!             border: UiRect::all(Val::Px(2.0)),
+//!             ..default()
+//!         },
+//!         BorderColor(Color::BLACK)
+//!     ));
 //! }
 //! ```
 
@@ -79,9 +87,9 @@ impl Plugin for TextInputPlugin {
 
 const CURSOR_HANDLE: Handle<Font> = weak_handle!("82b134b2-92c0-461a-891f-c35b968f2b88");
 
-/// Marker component for a Text Input entity.
+/// The main "driving component" for the Text Input.
 ///
-/// Add this to a Bevy `NodeBundle`. In addition to its [required components](TextInput#impl-Component-for-TextInput), some other
+/// In addition to its [required components](TextInput#impl-Component-for-TextInput), some other
 /// components may also be spawned with it: [`TextInputCursorPos`].
 ///
 /// # Example
@@ -90,7 +98,7 @@ const CURSOR_HANDLE: Handle<Font> = weak_handle!("82b134b2-92c0-461a-891f-c35b96
 /// # use bevy::prelude::*;
 /// use bevy_simple_text_input::TextInput;
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((NodeBundle::default(), TextInput));
+///     commands.spawn(TextInput);
 /// }
 /// ```
 #[derive(Component, Default)]
