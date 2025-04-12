@@ -488,7 +488,7 @@ fn scroll_with_cursor(
 ) {
     for (layout, computed, child_of) in inner_text_query.iter_mut() {
         let Ok((overflow_computed, mut overflow_style, mut overflow_scroll)) =
-            style_query.get_mut(child_of.parent)
+            style_query.get_mut(child_of.parent())
         else {
             continue;
         };
