@@ -1,6 +1,6 @@
 [package]
 name = "bevy_simple_text_input"
-version = "0.10.2"
+version = "0.11.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Bevy plugin for a simple single-line text input widget."
