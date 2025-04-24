@@ -52,6 +52,7 @@ I *might* consider very high quality contributions in these areas, but probably 
 
 | `bevy_simple_text_input` | `bevy` |
 | :--                      | :--    |
+| `0.11`                   | `0.16` |
 | `0.10`                   | `0.15` |
 | `0.8`-`0.9`              | `0.14` |
 | `0.4`-`0.7`              | `0.13` |
