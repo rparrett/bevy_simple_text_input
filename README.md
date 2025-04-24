@@ -68,4 +68,4 @@ Please keep PRs small and scoped to a single feature or fix.
 
 ## Alternatives
 
-If you need more features, check out [`bevy_cosmic_edit`](https://github.com/StaffEngineer/bevy_cosmic_edit) or [`bevy_egui`](https://github.com/mvlabat/bevy_egui).
+If you need more features, check out [`bevy_ui_text_input`](https://github.com/ickshonpe/bevy_ui_text_input) or [`bevy_egui`](https://github.com/mvlabat/bevy_egui).
