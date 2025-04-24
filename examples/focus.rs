@@ -3,7 +3,6 @@
 use bevy::{
     input_focus::{InputDispatchPlugin, InputFocus},
     prelude::*,
-    ui::FocusPolicy,
 };
 use bevy_simple_text_input::{
     TextInput, TextInputInactive, TextInputPlaceholder, TextInputPlugin, TextInputSystem,
