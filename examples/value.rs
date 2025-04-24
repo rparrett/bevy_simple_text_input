@@ -91,7 +91,9 @@ fn button_system(
             continue;
         }
 
-        let mut text_input = text_input_query.single_mut();
+        let Ok(mut text_input) = text_input_query.single_mut() else {
+            continue;
+        };
 
         let current_value = text_input.0.parse::<i32>().unwrap_or(0);
 
