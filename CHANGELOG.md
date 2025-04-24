@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.11.0
+
+* Upgrade to Bevy 0.16 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/97>
+
 ## v0.10.2
 
 * Fix scrolling when scale factor is not 1 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/90>
