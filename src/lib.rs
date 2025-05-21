@@ -60,6 +60,7 @@ impl Plugin for TextInputPlugin {
                     set_selection,
                     show_hide_placeholder,
                     update_style,
+                    update_placeholder_style,
                     keyboard,
                     update_value,
                 )
@@ -667,7 +668,8 @@ fn keyboard(
                         .lines
                         .iter()
                         .map(|line| format!("{}{}", line.text(), line.ending().as_str()))
-                        .collect::<Vec<_>>().join("");
+                        .collect::<Vec<_>>()
+                        .join("");
                 });
             }
             debug!("edit -> `{}`", text_input.0);
@@ -1213,6 +1215,38 @@ fn update_style(
 
         cursor.width = Val::Px(1f32.max(style.0.font_size * 0.05));
         cursor.height = Val::Px(style.0.font_size);
+
+        // mark so other systems update correctly
+        inactive.set_changed()
+    }
+}
+
+fn update_placeholder_style(
+    mut placeholder_query: Query<
+        (
+            &TextInputPlaceholder,
+            &TextInputTextStyle,
+            &Children,
+            &mut TextInputInactive,
+        ),
+        Changed<TextInputPlaceholder>,
+    >,
+    mut placeholders: Query<&mut Text, With<TextInputPlaceholderInner>>,
+) {
+    for (placeholder, base_style, children, mut inactive) in &mut placeholder_query {
+        let Some(mut text) = children
+            .iter()
+            .find(|c| placeholders.get(**c).is_ok())
+            .and_then(|c| placeholders.get_mut(*c).ok())
+        else {
+            continue;
+        };
+
+        text.sections[0].style = placeholder
+            .text_style
+            .clone()
+            .unwrap_or_else(|| placeholder_style(&base_style.0));
+        text.sections[0].value = placeholder.value.clone();
 
         // mark so other systems update correctly
         inactive.set_changed()
