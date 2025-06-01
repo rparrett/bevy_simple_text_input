@@ -64,11 +64,13 @@ impl Plugin for TextInputPlugin {
                 (
                     keyboard,
                     update_value.after(keyboard),
-                    blink_cursor,
-                    show_hide_cursor,
-                    update_style,
-                    update_color,
-                    show_hide_placeholder,
+                    (blink_cursor, show_hide_cursor, update_color)
+                        .chain()
+                        .after(keyboard)
+                        .ambiguous_with(update_value)
+                        .ambiguous_with(update_style),
+                    update_style.ambiguous_with(update_value),
+                    show_hide_placeholder.after(keyboard),
                     scroll_with_cursor,
                 )
                     .in_set(TextInputSystem),
