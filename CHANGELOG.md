@@ -1,5 +1,9 @@
 # Changelog
 
+## V0.11.1
+
+* Resolve system ordering ambiguities by @andrewhickman in <https://github.com/rparrett/bevy_simple_text_input/pull/102>
+
 ## v0.11.0
 
 * Upgrade to Bevy 0.16 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/97>
