@@ -58,6 +58,7 @@ impl Plugin for TextInputPlugin {
 
         app.init_resource::<TextInputNavigationBindings>()
             .add_message::<TextInputSubmitMessage>()
+            .add_message::<TextInputLimitMessage>()
             .add_observer(create)
             .add_systems(
                 Update,
@@ -153,6 +154,8 @@ pub struct TextInputSettings {
     pub retain_on_submit: bool,
     /// Mask text with the provided character.
     pub mask_character: Option<char>,
+    /// Character limit.
+    pub character_limit: Option<u16>,
 }
 
 /// Text navigation actions that can be bound via `TextInputNavigationBindings`.
@@ -302,6 +305,13 @@ pub struct TextInputSubmitMessage {
     pub value: String,
 }
 
+/// An event that is fired when the user hits the character limit.
+#[derive(Message)]
+pub struct TextInputLimitMessage {
+    /// The text input that triggered the event.
+    pub entity: Entity,
+}
+
 /// A convenience parameter for dealing with a text input's inner Bevy `Text` entity.
 #[derive(SystemParam)]
 struct InnerText<'w, 's> {
@@ -329,6 +339,7 @@ fn keyboard(
         &mut TextInputCursorTimer,
     )>,
     mut submit_writer: MessageWriter<TextInputSubmitMessage>,
+    mut limit_writer: MessageWriter<TextInputLimitMessage>,
     navigation: Res<TextInputNavigationBindings>,
 ) {
     if input_reader.clone().read(&input_events).next().is_none() {
@@ -419,6 +430,14 @@ fn keyboard(
 
                 cursor_timer.should_reset |= timer_should_reset;
                 continue;
+            }
+            if let Some(limit) = settings.character_limit {
+                if text_input.0.chars().count() >= limit as usize {
+                    limit_writer.write(TextInputLimitMessage {
+                        entity: input_entity,
+                    });
+                    continue;
+                }
             }
 
             match input.logical_key {
