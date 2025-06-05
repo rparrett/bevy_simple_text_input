@@ -412,7 +412,7 @@ fn keyboard(
             }
             if let Some(limit) = settings.character_limit {
                 if text_input.0.chars().count() >= limit as usize {
-                    limit_writer.write(TextInputLimitEvent {
+                    limit_writer.send(TextInputLimitEvent {
                         entity: input_entity,
                     });
                     continue;
