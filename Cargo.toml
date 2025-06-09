@@ -14,11 +14,13 @@ exclude = [".github"]
 
 [features]
 default = ["clipboard"]
-clipboard = ["dep:copypasta"]
+clipboard = ["dep:copypwasmta", "dep:futures-lite"]
 
 [dependencies]
 once_cell = "1.19.0"
-copypasta = { version = "0.10", optional = true }
+# copypwasmta = { version = "0.10", optional = true }
+copypwasmta = { git = "https://github.com/robtfm/copypwasmta", optional = true }
+futures-lite = { version = "1.12.0", optional = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
