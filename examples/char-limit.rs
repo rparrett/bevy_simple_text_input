@@ -1,9 +1,9 @@
-//! An example showing a masked input for passwords.
+//! An example showing a character limit.
 
 use bevy::prelude::*;
 use bevy_simple_text_input::{
-    TextInput, TextInputPlugin, TextInputSettings, TextInputTextColor, TextInputTextFont,
-    TextInputValue,
+    TextInput, TextInputPlugin, TextInputSettings, TextInputSubmitEvent, TextInputSystem,
+    TextInputTextColor, TextInputTextFont,
 };
 
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
@@ -15,6 +15,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(TextInputPlugin)
         .add_systems(Startup, setup)
+        .add_systems(Update, listener.after(TextInputSystem))
         .run();
 }
 
@@ -40,17 +41,21 @@ fn setup(mut commands: Commands) {
                 BorderColor(BORDER_COLOR_ACTIVE),
                 BackgroundColor(BACKGROUND_COLOR),
                 TextInput,
-                TextInputValue("password".to_string()),
+                TextInputSettings {
+                    character_limit: Some(12),
+                    ..default()
+                },
                 TextInputTextFont(TextFont {
                     font_size: 34.,
                     ..default()
                 }),
                 TextInputTextColor(TextColor(TEXT_COLOR)),
-                TextInputSettings {
-                    mask_character: Some('*'),
-                    retain_on_submit: true,
-                    ..default()
-                },
             ));
         });
+}
+
+fn listener(mut events: EventReader<TextInputSubmitEvent>) {
+    for event in events.read() {
+        info!("{:?} submitted: {}", event.entity, event.value);
+    }
 }
