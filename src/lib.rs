@@ -31,8 +31,8 @@
 //! ```
 
 use bevy::{
-    asset::{load_internal_binary_asset, weak_handle},
-    ecs::{event::EventCursor, system::SystemParam},
+    asset::{load_internal_binary_asset, uuid_handle},
+    ecs::{message::MessageCursor, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     text::{LineBreak, TextLayoutInfo},
@@ -57,7 +57,7 @@ impl Plugin for TextInputPlugin {
         );
 
         app.init_resource::<TextInputNavigationBindings>()
-            .add_event::<TextInputSubmitEvent>()
+            .add_message::<TextInputSubmitMessage>()
             .add_observer(create)
             .add_systems(
                 Update,
@@ -87,7 +87,7 @@ impl Plugin for TextInputPlugin {
     }
 }
 
-const CURSOR_HANDLE: Handle<Font> = weak_handle!("82b134b2-92c0-461a-891f-c35b968f2b88");
+const CURSOR_HANDLE: Handle<Font> = uuid_handle!("82b134b2-92c0-461a-891f-c35b968f2b88");
 
 /// The main "driving component" for the Text Input.
 ///
@@ -280,9 +280,9 @@ pub struct TextInputCursorPos(pub usize);
 #[derive(Component, Reflect)]
 struct TextInputInner;
 
-/// An event that is fired when the user presses the enter key.
-#[derive(Event)]
-pub struct TextInputSubmitEvent {
+/// A message that is broadcast when the user presses the enter key.
+#[derive(Message)]
+pub struct TextInputSubmitMessage {
     /// The text input that triggered the event.
     pub entity: Entity,
     /// The string contained in the text input at the time of the event.
@@ -305,8 +305,8 @@ impl InnerText<'_, '_> {
 
 fn keyboard(
     key_input: Res<ButtonInput<KeyCode>>,
-    input_events: Res<Events<KeyboardInput>>,
-    mut input_reader: Local<EventCursor<KeyboardInput>>,
+    input_events: Res<Messages<KeyboardInput>>,
+    mut input_reader: Local<MessageCursor<KeyboardInput>>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
@@ -315,7 +315,7 @@ fn keyboard(
         &mut TextInputCursorPos,
         &mut TextInputCursorTimer,
     )>,
-    mut submit_writer: EventWriter<TextInputSubmitEvent>,
+    mut submit_writer: MessageWriter<TextInputSubmitMessage>,
     navigation: Res<TextInputNavigationBindings>,
 ) {
     if input_reader.clone().read(&input_events).next().is_none() {
@@ -429,7 +429,7 @@ fn keyboard(
         }
 
         if let Some(value) = submitted_value {
-            submit_writer.write(TextInputSubmitEvent {
+            submit_writer.write(TextInputSubmitMessage {
                 entity: input_entity,
                 value,
             });
@@ -501,7 +501,7 @@ fn scroll_with_cursor(
             // If cursor is at the end, we can use FlexEnd so newly typed text does not take a
             // frame to move into view
             Some(1) => {
-                overflow_scroll.offset_x = 0.0;
+                overflow_scroll.x = 0.0;
                 overflow_style.justify_content = JustifyContent::FlexEnd;
                 continue;
             }
@@ -522,7 +522,7 @@ fn scroll_with_cursor(
             continue;
         };
 
-        let relative_pos = cursor_pos - overflow_scroll.offset_x;
+        let relative_pos = cursor_pos - overflow_scroll.x;
 
         if relative_pos < 0.0 || relative_pos > overflow_size {
             let req_px = overflow_size * 0.5 - cursor_pos;
@@ -531,14 +531,14 @@ fn scroll_with_cursor(
             // If the cursor is not at the end, we use have to use FlexStart.
             // See https://github.com/bevyengine/bevy/issues/17129.
 
-            overflow_scroll.offset_x = -req_px;
+            overflow_scroll.x = -req_px;
             overflow_style.justify_content = JustifyContent::FlexStart;
         }
     }
 }
 
 fn create(
-    trigger: Trigger<OnAdd, TextInputValue>,
+    trigger: On<Add, TextInputValue>,
     mut commands: Commands,
     query: Query<(
         Entity,
@@ -560,7 +560,7 @@ fn create(
         inactive,
         settings,
         placeholder,
-    )) = &query.get(trigger.target())
+    )) = &query.get(trigger.event_target())
     {
         let cursor_pos = match maybe_cursor_pos {
             None => {
@@ -651,11 +651,13 @@ fn create(
 
         commands.entity(overflow_container).add_child(text);
         commands
-            .entity(trigger.target())
+            .entity(trigger.event_target())
             .add_children(&[overflow_container, placeholder_text]);
 
         // Prevent clicks from registering on UI elements underneath the text input.
-        commands.entity(trigger.target()).insert(FocusPolicy::Block);
+        commands
+            .entity(trigger.event_target())
+            .insert(FocusPolicy::Block);
     }
 }
 

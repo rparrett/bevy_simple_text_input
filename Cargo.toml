@@ -18,12 +18,12 @@ std = ["bevy/std"]
 libm = ["bevy/libm"]
 
 [dependencies.bevy]
-version = "0.16.0"
+version = "0.17.0-rc.1"
 default-features = false
 features = ["bevy_ui", "bevy_asset", "bevy_text", "bevy_window"]
 
 [dev-dependencies.bevy]
-version = "0.16.0"
+version = "0.17.0-rc.1"
 default-features = true
 
 [lints.rust]
