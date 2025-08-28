@@ -38,7 +38,7 @@ fn setup(mut commands: Commands) {
                     padding: UiRect::all(Val::Px(5.0)),
                     ..default()
                 },
-                BorderColor(BORDER_COLOR_ACTIVE),
+                BorderColor::all(BORDER_COLOR_ACTIVE),
                 BackgroundColor(BACKGROUND_COLOR),
                 TextInput,
                 TextInputTextFont(TextFont {

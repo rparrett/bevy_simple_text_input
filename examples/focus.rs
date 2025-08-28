@@ -51,7 +51,7 @@ fn text_input() -> impl Bundle {
             padding: UiRect::all(Val::Px(5.0)),
             ..default()
         },
-        BorderColor(BORDER_COLOR_INACTIVE),
+        BorderColor::all(BORDER_COLOR_INACTIVE),
         BackgroundColor(BACKGROUND_COLOR),
         TextInput,
         TextInputTextFont(TextFont {
@@ -86,12 +86,12 @@ fn focus(
     }
 }
 
-fn background_node_click(mut trigger: Trigger<Pointer<Click>>, mut focus: ResMut<InputFocus>) {
+fn background_node_click(mut trigger: On<Pointer<Click>>, mut focus: ResMut<InputFocus>) {
     focus.0 = None;
     trigger.propagate(false);
 }
 
-fn text_input_click(mut trigger: Trigger<Pointer<Click>>, mut focus: ResMut<InputFocus>) {
-    focus.0 = Some(trigger.target());
+fn text_input_click(mut trigger: On<Pointer<Click>>, mut focus: ResMut<InputFocus>) {
+    focus.0 = Some(trigger.entity());
     trigger.propagate(false);
 }

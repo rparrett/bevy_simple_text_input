@@ -31,7 +31,7 @@
 //! ```
 
 use bevy::{
-    asset::{load_internal_binary_asset, weak_handle},
+    asset::{load_internal_binary_asset, uuid_handle},
     ecs::{event::EventCursor, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
@@ -87,7 +87,7 @@ impl Plugin for TextInputPlugin {
     }
 }
 
-const CURSOR_HANDLE: Handle<Font> = weak_handle!("82b134b2-92c0-461a-891f-c35b968f2b88");
+const CURSOR_HANDLE: Handle<Font> = uuid_handle!("82b134b2-92c0-461a-891f-c35b968f2b88");
 
 /// The main "driving component" for the Text Input.
 ///
@@ -281,7 +281,7 @@ pub struct TextInputCursorPos(pub usize);
 struct TextInputInner;
 
 /// An event that is fired when the user presses the enter key.
-#[derive(Event)]
+#[derive(BufferedEvent)]
 pub struct TextInputSubmitEvent {
     /// The text input that triggered the event.
     pub entity: Entity,
@@ -501,7 +501,7 @@ fn scroll_with_cursor(
             // If cursor is at the end, we can use FlexEnd so newly typed text does not take a
             // frame to move into view
             Some(1) => {
-                overflow_scroll.offset_x = 0.0;
+                overflow_scroll.x = 0.0;
                 overflow_style.justify_content = JustifyContent::FlexEnd;
                 continue;
             }
@@ -522,7 +522,7 @@ fn scroll_with_cursor(
             continue;
         };
 
-        let relative_pos = cursor_pos - overflow_scroll.offset_x;
+        let relative_pos = cursor_pos - overflow_scroll.x;
 
         if relative_pos < 0.0 || relative_pos > overflow_size {
             let req_px = overflow_size * 0.5 - cursor_pos;
@@ -531,14 +531,14 @@ fn scroll_with_cursor(
             // If the cursor is not at the end, we use have to use FlexStart.
             // See https://github.com/bevyengine/bevy/issues/17129.
 
-            overflow_scroll.offset_x = -req_px;
+            overflow_scroll.x = -req_px;
             overflow_style.justify_content = JustifyContent::FlexStart;
         }
     }
 }
 
 fn create(
-    trigger: Trigger<OnAdd, TextInputValue>,
+    trigger: On<Add, TextInputValue>,
     mut commands: Commands,
     query: Query<(
         Entity,
@@ -560,7 +560,7 @@ fn create(
         inactive,
         settings,
         placeholder,
-    )) = &query.get(trigger.target())
+    )) = &query.get(trigger.entity())
     {
         let cursor_pos = match maybe_cursor_pos {
             None => {
@@ -651,11 +651,11 @@ fn create(
 
         commands.entity(overflow_container).add_child(text);
         commands
-            .entity(trigger.target())
+            .entity(trigger.entity())
             .add_children(&[overflow_container, placeholder_text]);
 
         // Prevent clicks from registering on UI elements underneath the text input.
-        commands.entity(trigger.target()).insert(FocusPolicy::Block);
+        commands.entity(trigger.entity()).insert(FocusPolicy::Block);
     }
 }
 

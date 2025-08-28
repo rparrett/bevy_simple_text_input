@@ -50,7 +50,7 @@ fn setup(mut commands: Commands) {
                     padding: UiRect::all(Val::Px(5.0)),
                     ..default()
                 },
-                BorderColor(BORDER_COLOR_ACTIVE),
+                BorderColor::all(BORDER_COLOR_ACTIVE),
                 BackgroundColor(BACKGROUND_COLOR),
                 TextInput,
                 TextInputTextFont(text_font.clone()),
@@ -72,7 +72,7 @@ fn setup(mut commands: Commands) {
                         justify_content: JustifyContent::Center,
                         ..default()
                     },
-                    BorderColor(BORDER_COLOR_INACTIVE),
+                    BorderColor::all(BORDER_COLOR_INACTIVE),
                     BackgroundColor(BACKGROUND_COLOR),
                     IncValueButton,
                 ))
@@ -110,13 +110,13 @@ fn button_style_system(
     for (interaction, mut border_color) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
-                border_color.0 = BORDER_COLOR_ACTIVE;
+                border_color.set_all(BORDER_COLOR_ACTIVE);
             }
             Interaction::Hovered => {
-                border_color.0 = BORDER_COLOR_HOVER;
+                border_color.set_all(BORDER_COLOR_HOVER);
             }
             Interaction::None => {
-                border_color.0 = BORDER_COLOR_INACTIVE;
+                border_color.set_all(BORDER_COLOR_INACTIVE);
             }
         }
     }
