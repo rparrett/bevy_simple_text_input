@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_simple_text_input::{
-    TextInput, TextInputPlugin, TextInputSubmitEvent, TextInputSystem, TextInputTextColor,
+    TextInput, TextInputPlugin, TextInputSubmitMessage, TextInputSystem, TextInputTextColor,
     TextInputTextFont,
 };
 
@@ -50,7 +50,7 @@ fn setup(mut commands: Commands) {
         });
 }
 
-fn listener(mut events: EventReader<TextInputSubmitEvent>) {
+fn listener(mut events: MessageReader<TextInputSubmitMessage>) {
     for event in events.read() {
         info!("{:?} submitted: {}", event.entity, event.value);
     }

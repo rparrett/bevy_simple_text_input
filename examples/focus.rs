@@ -92,6 +92,6 @@ fn background_node_click(mut trigger: On<Pointer<Click>>, mut focus: ResMut<Inpu
 }
 
 fn text_input_click(mut trigger: On<Pointer<Click>>, mut focus: ResMut<InputFocus>) {
-    focus.0 = Some(trigger.entity());
+    focus.0 = Some(trigger.event_target());
     trigger.propagate(false);
 }

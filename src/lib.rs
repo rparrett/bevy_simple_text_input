@@ -32,7 +32,7 @@
 
 use bevy::{
     asset::{load_internal_binary_asset, uuid_handle},
-    ecs::{event::EventCursor, system::SystemParam},
+    ecs::{message::MessageCursor, system::SystemParam},
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
     text::{LineBreak, TextLayoutInfo},
@@ -57,7 +57,7 @@ impl Plugin for TextInputPlugin {
         );
 
         app.init_resource::<TextInputNavigationBindings>()
-            .add_event::<TextInputSubmitEvent>()
+            .add_message::<TextInputSubmitMessage>()
             .add_observer(create)
             .add_systems(
                 Update,
@@ -280,9 +280,9 @@ pub struct TextInputCursorPos(pub usize);
 #[derive(Component, Reflect)]
 struct TextInputInner;
 
-/// An event that is fired when the user presses the enter key.
-#[derive(BufferedEvent)]
-pub struct TextInputSubmitEvent {
+/// A message that is broadcast when the user presses the enter key.
+#[derive(Message)]
+pub struct TextInputSubmitMessage {
     /// The text input that triggered the event.
     pub entity: Entity,
     /// The string contained in the text input at the time of the event.
@@ -305,8 +305,8 @@ impl InnerText<'_, '_> {
 
 fn keyboard(
     key_input: Res<ButtonInput<KeyCode>>,
-    input_events: Res<Events<KeyboardInput>>,
-    mut input_reader: Local<EventCursor<KeyboardInput>>,
+    input_events: Res<Messages<KeyboardInput>>,
+    mut input_reader: Local<MessageCursor<KeyboardInput>>,
     mut text_input_query: Query<(
         Entity,
         &TextInputSettings,
@@ -315,7 +315,7 @@ fn keyboard(
         &mut TextInputCursorPos,
         &mut TextInputCursorTimer,
     )>,
-    mut submit_writer: EventWriter<TextInputSubmitEvent>,
+    mut submit_writer: MessageWriter<TextInputSubmitMessage>,
     navigation: Res<TextInputNavigationBindings>,
 ) {
     if input_reader.clone().read(&input_events).next().is_none() {
@@ -429,7 +429,7 @@ fn keyboard(
         }
 
         if let Some(value) = submitted_value {
-            submit_writer.write(TextInputSubmitEvent {
+            submit_writer.write(TextInputSubmitMessage {
                 entity: input_entity,
                 value,
             });
@@ -560,7 +560,7 @@ fn create(
         inactive,
         settings,
         placeholder,
-    )) = &query.get(trigger.entity())
+    )) = &query.get(trigger.event_target())
     {
         let cursor_pos = match maybe_cursor_pos {
             None => {
@@ -651,11 +651,13 @@ fn create(
 
         commands.entity(overflow_container).add_child(text);
         commands
-            .entity(trigger.entity())
+            .entity(trigger.event_target())
             .add_children(&[overflow_container, placeholder_text]);
 
         // Prevent clicks from registering on UI elements underneath the text input.
-        commands.entity(trigger.entity()).insert(FocusPolicy::Block);
+        commands
+            .entity(trigger.event_target())
+            .insert(FocusPolicy::Block);
     }
 }
 
