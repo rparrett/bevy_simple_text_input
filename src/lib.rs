@@ -25,7 +25,7 @@
 //!             border: UiRect::all(Val::Px(2.0)),
 //!             ..default()
 //!         },
-//!         BorderColor(Color::BLACK)
+//!         BorderColor::all(Color::BLACK)
 //!     ));
 //! }
 //! ```
