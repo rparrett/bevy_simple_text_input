@@ -472,9 +472,9 @@ fn update_value(
             cursor_pos.0,
         );
 
-        *writer.text(inner, 0) = values.0;
-        *writer.text(inner, 1) = values.1;
-        *writer.text(inner, 2) = values.2;
+        *writer.text(inner, 1) = values.0;
+        *writer.text(inner, 2) = values.1;
+        *writer.text(inner, 3) = values.2;
     }
 }
 
@@ -680,7 +680,7 @@ fn show_hide_cursor(
             continue;
         };
 
-        *writer.color(inner, 1) = if inactive.0 {
+        *writer.color(inner, 2) = if inactive.0 {
             TextColor(Color::NONE)
         } else {
             color.0
@@ -712,7 +712,7 @@ fn blink_cursor(
             cursor_timer.should_reset = false;
 
             if let Some(inner) = inner_text.inner_entity(entity) {
-                *writer.color(inner, 1) = color.0;
+                *writer.color(inner, 2) = color.0;
             };
 
             continue;
@@ -726,10 +726,10 @@ fn blink_cursor(
             continue;
         };
 
-        if writer.color(inner, 1).0 != Color::NONE {
-            *writer.color(inner, 1) = TextColor(Color::NONE);
+        if writer.color(inner, 2).0 != Color::NONE {
+            *writer.color(inner, 2) = TextColor(Color::NONE);
         } else {
-            *writer.color(inner, 1) = color.0;
+            *writer.color(inner, 2) = color.0;
         }
     }
 }
@@ -763,12 +763,12 @@ fn update_style(
             continue;
         };
 
-        *writer.font(inner, 0) = font.0.clone();
-        *writer.font(inner, 1) = TextFont {
+        *writer.font(inner, 1) = font.0.clone();
+        *writer.font(inner, 2) = TextFont {
             font: CURSOR_HANDLE,
             ..font.0.clone()
         };
-        *writer.font(inner, 2) = font.0.clone();
+        *writer.font(inner, 3) = font.0.clone();
     }
 }
 
@@ -784,13 +784,13 @@ fn update_color(
         let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
-        *writer.color(inner, 0) = color.0;
-        *writer.color(inner, 1) = if inactive.0 {
+        *writer.color(inner, 1) = color.0;
+        *writer.color(inner, 2) = if inactive.0 {
             TextColor(Color::NONE)
         } else {
             color.0
         };
-        *writer.color(inner, 2) = color.0;
+        *writer.color(inner, 3) = color.0;
     }
 }
 
