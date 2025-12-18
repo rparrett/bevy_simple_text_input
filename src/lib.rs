@@ -799,7 +799,7 @@ fn get_section_values(value: &str, cursor_pos: usize) -> (String, String, String
     let after = value.chars().skip(cursor_pos).collect();
 
     // If the cursor is between two characters, use the zero-width cursor.
-    let cursor = if cursor_pos >= value.chars().count() {
+    let cursor = if cursor_pos < value.chars().count() {
         "}".to_string()
     } else {
         "|".to_string()
