@@ -1,5 +1,10 @@
 # Changelog
 
+## V0.13.0
+
+* Fix text span indices by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/109>
+* Update to Bevy 0.18 by @Shatur in <https://github.com/rparrett/bevy_simple_text_input/pull/107>
+
 ## V0.12.0
 
 * Upgrade to Bevy 0.17 by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/105>
