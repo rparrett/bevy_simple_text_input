@@ -592,7 +592,7 @@ fn create(
 
                 // Cursor
                 parent.spawn((
-                    TextSpan::new(values.1),
+                    TextSpan::new(&values.1),
                     TextFont {
                         font: CURSOR_HANDLE,
                         ..font.0.clone()
@@ -623,10 +623,8 @@ fn create(
 
         let placeholder_text = commands
             .spawn((
-                Text::new(&placeholder.value),
+                Text::default(),
                 TextLayout::new_with_linebreak(LineBreak::NoWrap),
-                placeholder_font,
-                placeholder_color,
                 Name::new("TextInputPlaceholderInner"),
                 TextInputPlaceholderInner(placeholder.always_visible_when_empty),
                 if placeholder_visible {
@@ -636,10 +634,25 @@ fn create(
                 },
                 Node {
                     position_type: PositionType::Absolute,
-                    margin: UiRect::left(Val::Px(5.0)),
                     ..default()
                 },
             ))
+            .with_children(|parent| {
+                // Invisible spacer for the cursor
+                parent.spawn((
+                    TextSpan::new(&values.1),
+                    TextFont {
+                        font: CURSOR_HANDLE,
+                        ..font.0.clone()
+                    },
+                    TextColor(Color::NONE),
+                ));
+                parent.spawn((
+                    TextSpan::new(&placeholder.value),
+                    placeholder_font,
+                    placeholder_color,
+                ));
+            })
             .id();
 
         let overflow_container = commands
