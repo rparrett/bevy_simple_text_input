@@ -256,7 +256,7 @@ impl Default for TextInputNavigationBindings {
 pub struct TextInputValue(pub String);
 
 /// A component containing the placeholder text that is displayed when the text input is empty and not focused.
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Reflect)]
 pub struct TextInputPlaceholder {
     /// The placeholder text.
     pub value: String,
@@ -268,9 +268,19 @@ pub struct TextInputPlaceholder {
     ///
     /// If `None`, the text input color will be used with alpha value of `0.25`.
     pub text_color: Option<TextColor>,
-    /// Always show placeholder when field is empty
+    /// Hide the placeholder when the field is focused. Defaults to `true`.
     ///
-    pub always_visible_when_empty: bool,
+    pub hide_on_focus: bool,
+}
+impl Default for TextInputPlaceholder {
+    fn default() -> Self {
+        Self {
+            value: Default::default(),
+            text_font: Default::default(),
+            text_color: Default::default(),
+            hide_on_focus: true,
+        }
+    }
 }
 
 #[derive(Component, Reflect)]
@@ -619,7 +629,7 @@ fn create(
             .unwrap_or_else(|| placeholder_color(&color.0));
 
         let placeholder_visible =
-            (placeholder.always_visible_when_empty || inactive.0) && text_input.0.is_empty();
+            (placeholder.hide_on_focus || inactive.0) && text_input.0.is_empty();
 
         let placeholder_text = commands
             .spawn((
@@ -768,7 +778,7 @@ fn show_hide_placeholder(
         let mut iter = vis_query.iter_many_mut(children);
         while let Some(mut inner_vis) = iter.fetch_next() {
             inner_vis.set_if_neq(
-                if text.0.is_empty() && (placeholder.always_visible_when_empty || inactive.0) {
+                if text.0.is_empty() && (placeholder.hide_on_focus || inactive.0) {
                     Visibility::Inherited
                 } else {
                     Visibility::Hidden
