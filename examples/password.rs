@@ -50,6 +50,9 @@ fn setup(mut commands: Commands) {
                 TextInputSettings {
                     mask_character: Some('*'),
                     retain_on_submit: true,
+                    // We're configuring this value in the example to demonstrate the
+                    // functionality, but you probably don't want to limit the length
+                    // of passwords.
                     max_length: Some(12),
                 },
             ));
