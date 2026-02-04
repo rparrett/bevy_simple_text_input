@@ -274,7 +274,7 @@ pub struct TextInputPlaceholder {
 }
 
 #[derive(Component, Reflect)]
-struct TextInputPlaceholderInner(bool);
+struct TextInputPlaceholderInner;
 
 /// A component containing the current text cursor position.
 #[derive(Component, Default, Reflect)]
@@ -626,7 +626,7 @@ fn create(
                 Text::default(),
                 TextLayout::new_with_linebreak(LineBreak::NoWrap),
                 Name::new("TextInputPlaceholderInner"),
-                TextInputPlaceholderInner(placeholder.always_visible_when_empty),
+                TextInputPlaceholderInner,
                 if placeholder_visible {
                     Visibility::Inherited
                 } else {
@@ -754,20 +754,26 @@ fn blink_cursor(
 
 fn show_hide_placeholder(
     input_query: Query<
-        (&Children, &TextInputValue, &TextInputInactive),
+        (
+            &Children,
+            &TextInputValue,
+            &TextInputInactive,
+            &TextInputPlaceholder,
+        ),
         Or<(Changed<TextInputValue>, Changed<TextInputInactive>)>,
     >,
-    //mut vis_query: Query<&mut Visibility, With<TextInputPlaceholderInner>>,
-    mut vis_query: Query<(&mut Visibility, &TextInputPlaceholderInner)>,
+    mut vis_query: Query<&mut Visibility, With<TextInputPlaceholderInner>>,
 ) {
-    for (children, text, inactive) in &input_query {
+    for (children, text, inactive, placeholder) in &input_query {
         let mut iter = vis_query.iter_many_mut(children);
-        while let Some((mut inner_vis, inner_holder)) = iter.fetch_next() {
-            inner_vis.set_if_neq(if text.0.is_empty() && (inner_holder.0 || inactive.0) {
-                Visibility::Inherited
-            } else {
-                Visibility::Hidden
-            });
+        while let Some(mut inner_vis) = iter.fetch_next() {
+            inner_vis.set_if_neq(
+                if text.0.is_empty() && (placeholder.always_visible_when_empty || inactive.0) {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                },
+            );
         }
     }
 }
