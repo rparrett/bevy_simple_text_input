@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_simple_text_input::{
-    TextInput, TextInputLimitMessage, TextInputPlugin, TextInputSettings, TextInputSystem,
+    TextInput, TextInputMaxLengthMessage, TextInputPlugin, TextInputSettings, TextInputSystem,
     TextInputTextColor, TextInputTextFont, TextInputValue,
 };
 
@@ -50,13 +50,13 @@ fn setup(mut commands: Commands) {
                 TextInputSettings {
                     mask_character: Some('*'),
                     retain_on_submit: true,
-                    character_limit: Some(12),
+                    max_length: Some(12),
                 },
             ));
         });
 }
 
-fn listener(mut events: MessageReader<TextInputLimitMessage>) {
+fn listener(mut events: MessageReader<TextInputMaxLengthMessage>) {
     for event in events.read() {
         info!("{:?} max length reached.", event.entity);
     }
