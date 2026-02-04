@@ -38,12 +38,12 @@ fn setup(mut commands: Commands) {
         })
         .observe(background_node_click)
         .with_children(|parent| {
-            parent.spawn(text_input()).observe(text_input_click);
-            parent.spawn(text_input()).observe(text_input_click);
+            parent.spawn(text_input(false)).observe(text_input_click);
+            parent.spawn(text_input(true)).observe(text_input_click);
         });
 }
 
-fn text_input() -> impl Bundle {
+fn text_input(placeholder_hide_on_focus: bool) -> impl Bundle {
     (
         Node {
             width: Val::Px(200.0),
@@ -61,6 +61,7 @@ fn text_input() -> impl Bundle {
         TextInputTextColor(TextColor(TEXT_COLOR)),
         TextInputPlaceholder {
             value: "Click Me".to_string(),
+            hide_on_focus: placeholder_hide_on_focus,
             ..default()
         },
         TextInputInactive(true),

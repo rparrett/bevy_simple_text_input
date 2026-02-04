@@ -256,7 +256,7 @@ impl Default for TextInputNavigationBindings {
 pub struct TextInputValue(pub String);
 
 /// A component containing the placeholder text that is displayed when the text input is empty and not focused.
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Reflect)]
 pub struct TextInputPlaceholder {
     /// The placeholder text.
     pub value: String,
@@ -268,6 +268,19 @@ pub struct TextInputPlaceholder {
     ///
     /// If `None`, the text input color will be used with alpha value of `0.25`.
     pub text_color: Option<TextColor>,
+    /// Hide the placeholder when the field is focused. Defaults to `true`.
+    ///
+    pub hide_on_focus: bool,
+}
+impl Default for TextInputPlaceholder {
+    fn default() -> Self {
+        Self {
+            value: Default::default(),
+            text_font: Default::default(),
+            text_color: Default::default(),
+            hide_on_focus: true,
+        }
+    }
 }
 
 #[derive(Component, Reflect)]
@@ -589,7 +602,7 @@ fn create(
 
                 // Cursor
                 parent.spawn((
-                    TextSpan::new(values.1),
+                    TextSpan::new(&values.1),
                     TextFont {
                         font: CURSOR_HANDLE,
                         ..font.0.clone()
@@ -615,14 +628,13 @@ fn create(
             .text_color
             .unwrap_or_else(|| placeholder_color(&color.0));
 
-        let placeholder_visible = inactive.0 && text_input.0.is_empty();
+        let placeholder_visible =
+            (placeholder.hide_on_focus || inactive.0) && text_input.0.is_empty();
 
         let placeholder_text = commands
             .spawn((
-                Text::new(&placeholder.value),
+                Text::default(),
                 TextLayout::new_with_linebreak(LineBreak::NoWrap),
-                placeholder_font,
-                placeholder_color,
                 Name::new("TextInputPlaceholderInner"),
                 TextInputPlaceholderInner,
                 if placeholder_visible {
@@ -635,6 +647,22 @@ fn create(
                     ..default()
                 },
             ))
+            .with_children(|parent| {
+                // Invisible spacer for the cursor
+                parent.spawn((
+                    TextSpan::new(&values.1),
+                    TextFont {
+                        font: CURSOR_HANDLE,
+                        ..font.0.clone()
+                    },
+                    TextColor(Color::NONE),
+                ));
+                parent.spawn((
+                    TextSpan::new(&placeholder.value),
+                    placeholder_font,
+                    placeholder_color,
+                ));
+            })
             .id();
 
         let overflow_container = commands
@@ -736,19 +764,26 @@ fn blink_cursor(
 
 fn show_hide_placeholder(
     input_query: Query<
-        (&Children, &TextInputValue, &TextInputInactive),
+        (
+            &Children,
+            &TextInputValue,
+            &TextInputInactive,
+            &TextInputPlaceholder,
+        ),
         Or<(Changed<TextInputValue>, Changed<TextInputInactive>)>,
     >,
     mut vis_query: Query<&mut Visibility, With<TextInputPlaceholderInner>>,
 ) {
-    for (children, text, inactive) in &input_query {
+    for (children, text, inactive, placeholder) in &input_query {
         let mut iter = vis_query.iter_many_mut(children);
         while let Some(mut inner_vis) = iter.fetch_next() {
-            inner_vis.set_if_neq(if text.0.is_empty() && inactive.0 {
-                Visibility::Inherited
-            } else {
-                Visibility::Hidden
-            });
+            inner_vis.set_if_neq(
+                if text.0.is_empty() && (placeholder.hide_on_focus || inactive.0) {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                },
+            );
         }
     }
 }
