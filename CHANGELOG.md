@@ -1,5 +1,10 @@
 # Changelog
 
+## V0.14.0
+
+* Add `hide_on_focus` option to `TextInputPlaceholder` by @Cyannide in <https://github.com/rparrett/bevy_simple_text_input/pull/111>
+* feature: Add character limit to settings. by @shanecelis in <https://github.com/rparrett/bevy_simple_text_input/pull/103>
+
 ## V0.13.0
 
 * Fix text span indices by @rparrett in <https://github.com/rparrett/bevy_simple_text_input/pull/109>
