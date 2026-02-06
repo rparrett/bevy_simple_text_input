@@ -651,7 +651,7 @@ fn create(
             .unwrap_or_else(|| placeholder_color(&color.0));
 
         let placeholder_visible =
-            (placeholder.hide_on_focus || inactive.0) && text_input.0.is_empty();
+            (!placeholder.hide_on_focus || inactive.0) && text_input.0.is_empty();
 
         let placeholder_text = commands
             .spawn((
@@ -800,7 +800,7 @@ fn show_hide_placeholder(
         let mut iter = vis_query.iter_many_mut(children);
         while let Some(mut inner_vis) = iter.fetch_next() {
             inner_vis.set_if_neq(
-                if text.0.is_empty() && (placeholder.hide_on_focus || inactive.0) {
+                if text.0.is_empty() && (!placeholder.hide_on_focus || inactive.0) {
                     Visibility::Inherited
                 } else {
                     Visibility::Hidden

@@ -38,8 +38,8 @@ fn setup(mut commands: Commands) {
         })
         .observe(background_node_click)
         .with_children(|parent| {
-            parent.spawn(text_input(false)).observe(text_input_click);
             parent.spawn(text_input(true)).observe(text_input_click);
+            parent.spawn(text_input(false)).observe(text_input_click);
         });
 }
 
