@@ -1,5 +1,9 @@
 # Changelog
 
+## V0.14.1
+
+* Fix inverted behavior of `hide_on_focus` by @Cyannide in <https://github.com/rparrett/bevy_simple_text_input/pull/113>
+
 ## V0.14.0
 
 * Add `hide_on_focus` option to `TextInputPlaceholder` by @Cyannide in <https://github.com/rparrett/bevy_simple_text_input/pull/111>
