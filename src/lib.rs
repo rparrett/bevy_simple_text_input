@@ -53,7 +53,7 @@ impl Plugin for TextInputPlugin {
             app,
             CURSOR_HANDLE,
             "../assets/Cursor.ttf",
-            |bytes: &[u8], _path: String| { Font::try_from_bytes(bytes.to_vec()).unwrap() }
+            |bytes: &[u8], _path: String| { Font::from_bytes(bytes.to_vec(), "Cursor") }
         );
 
         app.init_resource::<TextInputNavigationBindings>()
@@ -534,7 +534,7 @@ fn scroll_with_cursor(
             continue;
         };
 
-        match layout.glyphs.last().map(|g| g.span_index) {
+        match layout.glyphs.last().map(|g| g.section_index) {
             // No text, nothing to do.
             None => continue,
             // If cursor is at the end, we can use FlexEnd so newly typed text does not take a
@@ -555,7 +555,7 @@ fn scroll_with_cursor(
         let Some(cursor_pos) = layout
             .glyphs
             .iter()
-            .find(|g| g.span_index == CURSOR_SPAN)
+            .find(|g| g.section_index == CURSOR_SPAN)
             .map(|p| p.position.x * inverse_scale_factor)
         else {
             continue;
@@ -630,7 +630,7 @@ fn create(
                 parent.spawn((
                     TextSpan::new(&values.1),
                     TextFont {
-                        font: CURSOR_HANDLE,
+                        font: FontSource::Handle(CURSOR_HANDLE),
                         ..font.0.clone()
                     },
                     if inactive.0 {
@@ -678,7 +678,7 @@ fn create(
                 parent.spawn((
                     TextSpan::new(&values.1),
                     TextFont {
-                        font: CURSOR_HANDLE,
+                        font: FontSource::Handle(CURSOR_HANDLE),
                         ..font.0.clone()
                     },
                     TextColor(Color::NONE),
@@ -826,7 +826,7 @@ fn update_style(
 
         *writer.font(inner, PRE_CURSOR_SPAN) = font.0.clone();
         *writer.font(inner, CURSOR_SPAN) = TextFont {
-            font: CURSOR_HANDLE,
+            font: FontSource::Handle(CURSOR_HANDLE),
             ..font.0.clone()
         };
         *writer.font(inner, POST_CURSOR_SPAN) = font.0.clone();

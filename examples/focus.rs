@@ -1,7 +1,7 @@
 //! An example showing a more advanced implementation with focus.
 
 use bevy::{
-    input_focus::{InputDispatchPlugin, InputFocus},
+    input_focus::{FocusCause, InputFocus},
     prelude::*,
 };
 use bevy_simple_text_input::{
@@ -16,7 +16,7 @@ const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, InputDispatchPlugin))
+        .add_plugins(DefaultPlugins)
         .add_plugins(TextInputPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, focus.before(TextInputSystem))
@@ -55,7 +55,7 @@ fn text_input(placeholder_hide_on_focus: bool) -> impl Bundle {
         BackgroundColor(BACKGROUND_COLOR),
         TextInput,
         TextInputTextFont(TextFont {
-            font_size: 34.,
+            font_size: FontSize::Px(34.),
             ..default()
         }),
         TextInputTextColor(TextColor(TEXT_COLOR)),
@@ -77,7 +77,7 @@ fn focus(
     }
 
     for (entity, mut inactive, mut border_color) in text_inputs.iter_mut() {
-        if focus.0 == Some(entity) {
+        if focus.get() == Some(entity) {
             inactive.0 = false;
             *border_color = BORDER_COLOR_ACTIVE.into();
         } else {
@@ -88,11 +88,11 @@ fn focus(
 }
 
 fn background_node_click(mut trigger: On<Pointer<Click>>, mut focus: ResMut<InputFocus>) {
-    focus.0 = None;
+    focus.clear();
     trigger.propagate(false);
 }
 
 fn text_input_click(mut trigger: On<Pointer<Click>>, mut focus: ResMut<InputFocus>) {
-    focus.0 = Some(trigger.event_target());
+    focus.set(trigger.event_target(), FocusCause::Pressed);
     trigger.propagate(false);
 }

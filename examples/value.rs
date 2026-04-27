@@ -28,7 +28,7 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 
     let text_font = TextFont {
-        font_size: 40.,
+        font_size: FontSize::Px(40.),
         ..default()
     };
     let text_color = TextColor(TEXT_COLOR);
