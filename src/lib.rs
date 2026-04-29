@@ -90,6 +90,10 @@ impl Plugin for TextInputPlugin {
 
 const CURSOR_HANDLE: Handle<Font> = uuid_handle!("82b134b2-92c0-461a-891f-c35b968f2b88");
 
+const PRE_CURSOR_SPAN: usize = 1;
+const CURSOR_SPAN: usize = 2;
+const POST_CURSOR_SPAN: usize = 3;
+
 /// The main "driving component" for the Text Input.
 ///
 /// In addition to its [required components](TextInput#impl-Component-for-TextInput), some other
@@ -507,9 +511,9 @@ fn update_value(
             cursor_pos.0,
         );
 
-        *writer.text(inner, 1) = values.0;
-        *writer.text(inner, 2) = values.1;
-        *writer.text(inner, 3) = values.2;
+        *writer.text(inner, PRE_CURSOR_SPAN) = values.0;
+        *writer.text(inner, CURSOR_SPAN) = values.1;
+        *writer.text(inner, POST_CURSOR_SPAN) = values.2;
     }
 }
 
@@ -535,7 +539,7 @@ fn scroll_with_cursor(
             None => continue,
             // If cursor is at the end, we can use FlexEnd so newly typed text does not take a
             // frame to move into view
-            Some(1) => {
+            Some(CURSOR_SPAN) => {
                 overflow_scroll.x = 0.0;
                 overflow_style.justify_content = JustifyContent::FlexEnd;
                 continue;
@@ -551,7 +555,7 @@ fn scroll_with_cursor(
         let Some(cursor_pos) = layout
             .glyphs
             .iter()
-            .find(|g| g.span_index == 1)
+            .find(|g| g.span_index == CURSOR_SPAN)
             .map(|p| p.position.x * inverse_scale_factor)
         else {
             continue;
@@ -730,7 +734,7 @@ fn show_hide_cursor(
             continue;
         };
 
-        *writer.color(inner, 2) = if inactive.0 {
+        *writer.color(inner, CURSOR_SPAN) = if inactive.0 {
             TextColor(Color::NONE)
         } else {
             color.0
@@ -762,7 +766,7 @@ fn blink_cursor(
             cursor_timer.should_reset = false;
 
             if let Some(inner) = inner_text.inner_entity(entity) {
-                *writer.color(inner, 2) = color.0;
+                *writer.color(inner, CURSOR_SPAN) = color.0;
             };
 
             continue;
@@ -776,10 +780,10 @@ fn blink_cursor(
             continue;
         };
 
-        if writer.color(inner, 2).0 != Color::NONE {
-            *writer.color(inner, 2) = TextColor(Color::NONE);
+        if writer.color(inner, CURSOR_SPAN).0 != Color::NONE {
+            *writer.color(inner, CURSOR_SPAN) = TextColor(Color::NONE);
         } else {
-            *writer.color(inner, 2) = color.0;
+            *writer.color(inner, CURSOR_SPAN) = color.0;
         }
     }
 }
@@ -820,12 +824,12 @@ fn update_style(
             continue;
         };
 
-        *writer.font(inner, 1) = font.0.clone();
-        *writer.font(inner, 2) = TextFont {
+        *writer.font(inner, PRE_CURSOR_SPAN) = font.0.clone();
+        *writer.font(inner, CURSOR_SPAN) = TextFont {
             font: CURSOR_HANDLE,
             ..font.0.clone()
         };
-        *writer.font(inner, 3) = font.0.clone();
+        *writer.font(inner, POST_CURSOR_SPAN) = font.0.clone();
     }
 }
 
@@ -841,13 +845,13 @@ fn update_color(
         let Some(inner) = inner_text.inner_entity(entity) else {
             continue;
         };
-        *writer.color(inner, 1) = color.0;
-        *writer.color(inner, 2) = if inactive.0 {
+        *writer.color(inner, PRE_CURSOR_SPAN) = color.0;
+        *writer.color(inner, CURSOR_SPAN) = if inactive.0 {
             TextColor(Color::NONE)
         } else {
             color.0
         };
-        *writer.color(inner, 3) = color.0;
+        *writer.color(inner, POST_CURSOR_SPAN) = color.0;
     }
 }
 
