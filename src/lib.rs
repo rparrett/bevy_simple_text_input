@@ -618,7 +618,7 @@ fn create(
         let text = commands
             .spawn((
                 Text::default(),
-                TextLayout::new_with_linebreak(LineBreak::NoWrap),
+                TextLayout::default().with_linebreak(LineBreak::NoWrap),
                 Name::new("TextInputInner"),
                 TextInputInner,
             ))
@@ -660,7 +660,7 @@ fn create(
         let placeholder_text = commands
             .spawn((
                 Text::default(),
-                TextLayout::new_with_linebreak(LineBreak::NoWrap),
+                TextLayout::default().with_linebreak(LineBreak::NoWrap),
                 Name::new("TextInputPlaceholderInner"),
                 TextInputPlaceholderInner,
                 if placeholder_visible {
