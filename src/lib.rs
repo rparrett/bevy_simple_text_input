@@ -53,7 +53,7 @@ impl Plugin for TextInputPlugin {
             app,
             CURSOR_HANDLE,
             "../assets/Cursor.ttf",
-            |bytes: &[u8], _path: String| { Font::from_bytes(bytes.to_vec(), "Cursor") }
+            |bytes: &[u8], _path: String| { Font::from_bytes(bytes.to_vec()) }
         );
 
         app.init_resource::<TextInputNavigationBindings>()
