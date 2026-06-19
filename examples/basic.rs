@@ -42,7 +42,7 @@ fn setup(mut commands: Commands) {
                 BackgroundColor(BACKGROUND_COLOR),
                 TextInput,
                 TextInputTextFont(TextFont {
-                    font_size: 34.,
+                    font_size: FontSize::Px(34.),
                     ..default()
                 }),
                 TextInputTextColor(TextColor(TEXT_COLOR)),
