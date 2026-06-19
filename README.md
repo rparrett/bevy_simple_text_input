@@ -8,6 +8,12 @@ An unambitious single-line text input widget for `bevy_ui`.
 
 ![animated screenshot of text input widget gaining focus and text typed and submitted](assets/screenshot.gif)
 
+## Deprecated
+
+Bevy 0.19 now has a built-in [EditableText](https://bevy.org/news/bevy-0-19/#text-input) component. It is better and has more features overall, and you should probably use it instead of this.
+
+I am not planning on any more non-bugfix releases and will archive the project when Bevy 0.20 is release.
+
 ## Usage
 
 > [!IMPORTANT]
@@ -68,7 +74,3 @@ Please feel free to open a PR!
 The code should be simple enough for users to quickly understand and modify for their own purposes. Any new dependencies must not also depend on Bevy. Ideally, we should not add *any* new dependencies.
 
 Please keep PRs small and scoped to a single feature or fix.
-
-## Alternatives
-
-If you need more features, check out [`bevy_ui_text_input`](https://github.com/ickshonpe/bevy_ui_text_input) or [`bevy_egui`](https://github.com/mvlabat/bevy_egui).
