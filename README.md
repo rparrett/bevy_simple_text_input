@@ -12,7 +12,7 @@ An unambitious single-line text input widget for `bevy_ui`.
 
 Bevy 0.19 now has a built-in [EditableText](https://bevy.org/news/bevy-0-19/#text-input) component. It is better and has more features overall, and you should probably use it instead of this.
 
-I am not planning on any more non-bugfix releases and will archive the project when Bevy 0.20 is release.
+I am not planning on any more non-bugfix releases and will archive the project when Bevy 0.20 is released.
 
 ## Usage
 
